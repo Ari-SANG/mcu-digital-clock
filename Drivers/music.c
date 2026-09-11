@@ -19,7 +19,8 @@
 #define NOTE_G5    12U
 
 #define NOTE_UNIT_MS 50U
-#define T1_RELOAD(freq) (65536UL - (FOSC / 12UL / 2UL / (freq)))
+#define NOTE_GAP_MS  20U
+#define T1_RELOAD(freq) (65536UL - (FOSC / 2UL / (freq)))
 
 sbit MUSIC_BUZZER = P3^5;
 
@@ -62,13 +63,12 @@ static unsigned int code ToneReloads[12] =
     T1_RELOAD(659UL), T1_RELOAD(698UL), T1_RELOAD(784UL)
 };
 
-static volatile unsigned char data Timer1ReloadHigh;
-static volatile unsigned char data Timer1ReloadLow;
 static unsigned char data MelodyStart;
 static unsigned char data MelodyEnd;
 static unsigned char data MelodyPosition;
 static unsigned int data NoteRemainingMs;
 static unsigned int data PlayRemainingMs;
+static volatile bit ToneActive;
 volatile bit MusicPlaying;
 
 static void Music_LoadNextNote(void)
@@ -80,28 +80,32 @@ static void Music_LoadNextNote(void)
     note = MelodyData[MelodyPosition++];
     NoteRemainingMs = (unsigned int)MelodyData[MelodyPosition++] * NOTE_UNIT_MS;
 
+    ET1 = 0;
     TR1 = 0;
+    TF1 = 0;
+    ToneActive = 0;
     MUSIC_BUZZER = 1;
     if (note != NOTE_REST)
     {
         reload = ToneReloads[note - 1U];
-        Timer1ReloadHigh = (unsigned char)(reload >> 8);
-        Timer1ReloadLow = (unsigned char)reload;
-        TH1 = Timer1ReloadHigh;
-        TL1 = Timer1ReloadLow;
-        TF1 = 0;
+        TH1 = (unsigned char)(reload >> 8);
+        TL1 = (unsigned char)reload;
+        ToneActive = 1;
         TR1 = 1;
     }
+    ET1 = 1;
 }
 
 void Music_Init(void)
 {
     TR1 = 0;
-    TMOD = (TMOD & 0x0FU) | 0x10U;
-    AUXR &= ~0x40U;
+    /* STC15 mode 0 is a 16-bit auto-reload timer. */
+    TMOD &= 0x0FU;
+    AUXR |= 0x40U;
     TF1 = 0;
-    PT1 = 0;
+    PT1 = 1;
     ET1 = 1;
+    ToneActive = 0;
     MusicPlaying = 0;
     MUSIC_BUZZER = 1;
 }
@@ -109,24 +113,31 @@ void Music_Init(void)
 void Music_Start(unsigned char melody, unsigned int limit_ms)
 {
     if (melody >= MUSIC_COUNT) melody = 0;
+    ET0 = 0;
     ET1 = 0;
+    TR1 = 0;
+    ToneActive = 0;
+    MusicPlaying = 0;
     MelodyStart = MelodyOffsets[melody];
     MelodyEnd = MelodyOffsets[melody + 1U];
     MelodyPosition = MelodyStart;
     PlayRemainingMs = limit_ms;
     MusicPlaying = 1;
     Music_LoadNextNote();
-    ET1 = 1;
+    ET0 = 1;
 }
 
 void Music_Stop(void)
 {
+    ET0 = 0;
     ET1 = 0;
     TR1 = 0;
     TF1 = 0;
+    ToneActive = 0;
     MusicPlaying = 0;
     MUSIC_BUZZER = 1;
     ET1 = 1;
+    ET0 = 1;
 }
 
 void Music_Tick1ms(void)
@@ -142,20 +153,28 @@ void Music_Tick1ms(void)
         }
     }
 
-    if ((NoteRemainingMs != 0U) && (--NoteRemainingMs == 0U))
-        Music_LoadNextNote();
+    if (NoteRemainingMs != 0U)
+    {
+        NoteRemainingMs--;
+        if ((NoteRemainingMs == NOTE_GAP_MS) && ToneActive)
+        {
+            ET1 = 0;
+            TR1 = 0;
+            TF1 = 0;
+            ToneActive = 0;
+            MUSIC_BUZZER = 1;
+            ET1 = 1;
+        }
+        if (NoteRemainingMs == 0U) Music_LoadNextNote();
+    }
 }
 
 void Timer1_Isr(void) interrupt 3 using 3
 {
-    TR1 = 0;
-    if (!MusicPlaying)
+    if ((!MusicPlaying) || (!ToneActive))
     {
         MUSIC_BUZZER = 1;
         return;
     }
-    TH1 = Timer1ReloadHigh;
-    TL1 = Timer1ReloadLow;
     MUSIC_BUZZER = !MUSIC_BUZZER;
-    TR1 = 1;
 }

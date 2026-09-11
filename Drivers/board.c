@@ -99,7 +99,8 @@ void Board_Init(void)
     TL0 = (unsigned char)T0_RELOAD;
     TH0 = (unsigned char)(T0_RELOAD >> 8);
     TF0 = 0;
-    PT0 = 1;
+    /* Timer1 music edges have priority; its ISR is only one pin toggle. */
+    PT0 = 0;
     ET0 = 1;
     TR0 = 1;
 }

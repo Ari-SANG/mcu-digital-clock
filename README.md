@@ -24,10 +24,10 @@ is fitted between P4.5 and VCCD; the other H2 position connects VCCD directly to
 - `main.c`: initialization and foreground scheduling only.
 - `config.h`: student ID, startup time, alarm defaults and timing constants.
 - `Application/app.c`: four display states and the complete edit workflow.
-- `Drivers/board.c`: GPIO, display scan, clock timebase, alarm, buzzer and
+- `Drivers/board.c`: GPIO, Timer1 display scan, clock timebase, alarm and
   P1.0/ADC0 temperature measurement.
-- `Drivers/music.c`: Timer1 tone generation, three built-in melodies and
-  alarm/preview sequencing.
+- `Drivers/music.c`: Timer0 hardware tone output, three built-in melodies,
+  clock tick and alarm/preview sequencing.
 - `Drivers/keys.c`: key debounce and long-press repeat.
 - `Drivers/uart1.c`: UART1 initialization and time/alarm-frame parser.
 - `chuankou/`: C# WinForms serial tool, source code and compiled EXE.
@@ -54,12 +54,13 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
   follows hour -> minute -> second -> finish; alarm editing follows hour ->
   minute -> music -> finish.
 - The alarm music field is shown as `A1-2`, meaning alarm 1 uses music 2.
-  P1.4/P1.5 selects the previous/next melody and restarts a three-second
+  P1.4/P1.5 selects the previous/next melody and restarts a six-second
   preview; P1.3 stops the preview and completes editing.
 - Any button stops a ringing alarm.
 
-The display scan and clock timebase run in the 1 ms Timer0 interrupt, so button
-handling does not stop or visibly block the display.
+The display scan and clock timebase run in the 1 ms Timer1 interrupt. Timer0's
+hardware clock output drives P3.5 directly, so melody pitch does not depend on
+interrupt latency and button handling does not block the display.
 
 ## Room temperature
 
@@ -106,6 +107,8 @@ success only after receiving the MCU's `06` ACK.
 - Alarm 1 defaults to `Twinkle Twinkle Little Star`, alarm 2 to `Ode to Joy`,
   and alarm 3 to `Happy Birthday`. The selected melody repeats for up to 30
   seconds; any button stops it.
+- The melodies use the C5-G6 range, song-specific timing and a 25 ms gap between
+  notes for clear articulation on the board's passive buzzer.
 - Alarm duration: up to 30 seconds, looping the selected passive-buzzer melody.
 - Clock tick: a 40 ms, 500 Hz tone on each second while the clock display is
   selected. The alarm has priority over this short tone.

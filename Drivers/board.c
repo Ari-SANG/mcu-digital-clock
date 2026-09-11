@@ -6,7 +6,7 @@
 #include "config.h"
 #include "music.h"
 
-#define T0_RELOAD (65536UL - FOSC / 1000UL)
+#define T1_RELOAD (65536UL - FOSC / 1000UL)
 
 sbit DIG1 = P4^2;
 sbit DIG2 = P4^1;
@@ -42,7 +42,6 @@ unsigned char data AlarmMinutes[ALARM_COUNT];
 unsigned char data AlarmMelodies[ALARM_COUNT];
 unsigned char data SelectedAlarm;
 static volatile unsigned int data AlarmMs;
-static volatile unsigned char data ClockTickMs;
 volatile bit AlarmRinging;
 
 void Board_Init(void)
@@ -63,7 +62,7 @@ void Board_Init(void)
     P1M0 &= ~0x01;
     P1ASF = 0x01;
     ADC_CONTR = 0x80;
-    INT_CLKO &= ~0x01;
+    INT_CLKO &= ~0x01U;
 
     ClockHour = CLOCK_START_HOUR;
     ClockMinute = CLOCK_START_MINUTE;
@@ -81,7 +80,6 @@ void Board_Init(void)
     SelectedAlarm = 0;
     AlarmRinging = 0;
     AlarmMs = 0;
-    ClockTickMs = 0;
 
     Disp[0] = 10U; Disp[1] = 10U; Disp[2] = 10U; Disp[3] = 10U;
     BlinkMask = 0;
@@ -93,16 +91,15 @@ void Board_Init(void)
     Tick10ms = 0;
     SecondEvent = 0;
 
-    TR0 = 0;
-    AUXR |= 0x80;
-    TMOD &= 0xF0;
-    TL0 = (unsigned char)T0_RELOAD;
-    TH0 = (unsigned char)(T0_RELOAD >> 8);
-    TF0 = 0;
-    /* Timer1 music edges have priority; its ISR is only one pin toggle. */
-    PT0 = 0;
-    ET0 = 1;
-    TR0 = 1;
+    TR1 = 0;
+    AUXR |= 0x40U;
+    TMOD &= 0x0FU;
+    TL1 = (unsigned char)T1_RELOAD;
+    TH1 = (unsigned char)(T1_RELOAD >> 8);
+    TF1 = 0;
+    PT1 = 1;
+    ET1 = 1;
+    TR1 = 1;
 }
 
 bit Board_Take10msTick(void)
@@ -253,7 +250,6 @@ bit Board_IsAlarmTime(unsigned char hour, unsigned char minute)
 
 void Board_StartAlarm(void)
 {
-    ClockTickMs = 0;
     AlarmMs = 0;
     AlarmRinging = 1;
     Music_Start(AlarmMelodies[SelectedAlarm], 0U);
@@ -261,17 +257,16 @@ void Board_StartAlarm(void)
 
 void Board_StartClockTick(void)
 {
-    ClockTickMs = CLOCK_TICK_SOUND_MS;
+    Music_StartClockTick();
 }
 
 void Board_StopAlarm(void)
 {
     AlarmRinging = 0;
     Music_Stop();
-    BUZZER = 1;
 }
 
-void Timer0_Isr(void) interrupt 1 using 1
+void Timer1_Isr(void) interrupt 3 using 1
 {
     unsigned char pattern;
 
@@ -320,12 +315,6 @@ void Timer0_Isr(void) interrupt 1 using 1
     {
         if (++AlarmMs >= ALARM_RING_MS) Board_StopAlarm();
     }
-    else if ((!MusicPlaying) && (ClockTickMs != 0U))
-    {
-        BUZZER = !BUZZER;
-        if (--ClockTickMs == 0U) BUZZER = 1;
-    }
-    else if (!MusicPlaying) BUZZER = 1;
 
     if (++Divider10ms >= 10U)
     {

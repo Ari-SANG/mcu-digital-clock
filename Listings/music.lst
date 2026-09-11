@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 12:45:06 PAGE 1   
+C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 15:09:59 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MUSIC
@@ -8,200 +8,212 @@ COMPILER INVOKED BY: D:\MDK5.36\C51\BIN\C51.EXE Drivers\music.c OPTIMIZE(9,SIZE)
 
 line level    source
 
-   1          /* Passive-buzzer melody sequencer and Timer1 tone generator. */
+   1          /* Passive-buzzer sequencer using the Timer0 hardware clock output. */
    2          
    3          #include <STC15.H>
    4          #include "config.h"
    5          #include "music.h"
    6          
    7          #define NOTE_REST  0U
-   8          #define NOTE_C4    1U
-   9          #define NOTE_D4    2U
-  10          #define NOTE_E4    3U
-  11          #define NOTE_F4    4U
-  12          #define NOTE_G4    5U
-  13          #define NOTE_A4    6U
-  14          #define NOTE_B4    7U
-  15          #define NOTE_C5    8U
-  16          #define NOTE_D5    9U
-  17          #define NOTE_E5    10U
-  18          #define NOTE_F5    11U
-  19          #define NOTE_G5    12U
+   8          #define NOTE_C5    1U
+   9          #define NOTE_D5    2U
+  10          #define NOTE_E5    3U
+  11          #define NOTE_F5    4U
+  12          #define NOTE_G5    5U
+  13          #define NOTE_A5    6U
+  14          #define NOTE_B5    7U
+  15          #define NOTE_C6    8U
+  16          #define NOTE_D6    9U
+  17          #define NOTE_E6    10U
+  18          #define NOTE_F6    11U
+  19          #define NOTE_G6    12U
   20          
   21          #define NOTE_UNIT_MS 50U
-  22          #define NOTE_GAP_MS  20U
-  23          #define T1_RELOAD(freq) (65536UL - (FOSC / 2UL / (freq)))
-  24          
-  25          sbit MUSIC_BUZZER = P3^5;
-  26          
-  27          /* Each pair is note, duration in 50 ms units. */
-  28          static unsigned char code MelodyData[] =
-  29          {
-  30              /* 0: Twinkle Twinkle Little Star */
-  31              NOTE_C4,6, NOTE_C4,6, NOTE_G4,6, NOTE_G4,6,
-  32              NOTE_A4,6, NOTE_A4,6, NOTE_G4,12, NOTE_REST,2,
-  33              NOTE_F4,6, NOTE_F4,6, NOTE_E4,6, NOTE_E4,6,
-  34              NOTE_D4,6, NOTE_D4,6, NOTE_C4,12, NOTE_REST,4,
-  35          
-  36              /* 1: Ode to Joy */
-  37              NOTE_E4,6, NOTE_E4,6, NOTE_F4,6, NOTE_G4,6,
-  38              NOTE_G4,6, NOTE_F4,6, NOTE_E4,6, NOTE_D4,6,
-  39              NOTE_C4,6, NOTE_C4,6, NOTE_D4,6, NOTE_E4,6,
-  40              NOTE_E4,9, NOTE_D4,3, NOTE_D4,12, NOTE_REST,2,
-  41              NOTE_E4,6, NOTE_E4,6, NOTE_F4,6, NOTE_G4,6,
-  42              NOTE_G4,6, NOTE_F4,6, NOTE_E4,6, NOTE_D4,6,
-  43              NOTE_C4,6, NOTE_C4,6, NOTE_D4,6, NOTE_E4,6,
-  44              NOTE_D4,9, NOTE_C4,3, NOTE_C4,12, NOTE_REST,4,
-  45          
-  46              /* 2: Happy Birthday */
-  47              NOTE_G4,4, NOTE_G4,4, NOTE_A4,8, NOTE_G4,8,
-  48              NOTE_C5,8, NOTE_B4,16, NOTE_G4,4, NOTE_G4,4,
-  49              NOTE_A4,8, NOTE_G4,8, NOTE_D5,8, NOTE_C5,16,
-  50              NOTE_G4,4, NOTE_G4,4, NOTE_G5,8, NOTE_E5,8,
-  51              NOTE_C5,8, NOTE_B4,8, NOTE_A4,16,
-  52              NOTE_F5,4, NOTE_F5,4, NOTE_E5,8, NOTE_C5,8,
-  53              NOTE_D5,8, NOTE_C5,16, NOTE_REST,4
-  54          };
-C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 12:45:06 PAGE 2   
+  22          #define NOTE_GAP_MS  25U
+  23          #define CLOCK_TICK_HZ 500UL
+  24          #define T0_RELOAD(freq) (65536UL - (FOSC / 2UL / (freq)))
+  25          
+  26          sbit MUSIC_BUZZER = P3^5;
+  27          
+  28          /* Each pair is note, duration in 50 ms units. */
+  29          static unsigned char code MelodyData[] =
+  30          {
+  31              /* 0: Twinkle Twinkle Little Star, complete main melody. */
+  32              NOTE_C5,10, NOTE_C5,10, NOTE_G5,10, NOTE_G5,10,
+  33              NOTE_A5,10, NOTE_A5,10, NOTE_G5,20,
+  34              NOTE_F5,10, NOTE_F5,10, NOTE_E5,10, NOTE_E5,10,
+  35              NOTE_D5,10, NOTE_D5,10, NOTE_C5,20,
+  36              NOTE_G5,10, NOTE_G5,10, NOTE_F5,10, NOTE_F5,10,
+  37              NOTE_E5,10, NOTE_E5,10, NOTE_D5,20,
+  38              NOTE_G5,10, NOTE_G5,10, NOTE_F5,10, NOTE_F5,10,
+  39              NOTE_E5,10, NOTE_E5,10, NOTE_D5,20,
+  40              NOTE_C5,10, NOTE_C5,10, NOTE_G5,10, NOTE_G5,10,
+  41              NOTE_A5,10, NOTE_A5,10, NOTE_G5,20,
+  42              NOTE_F5,10, NOTE_F5,10, NOTE_E5,10, NOTE_E5,10,
+  43              NOTE_D5,10, NOTE_D5,10, NOTE_C5,20, NOTE_REST,4,
+  44          
+  45              /* 1: Ode to Joy */
+  46              NOTE_E5,8, NOTE_E5,8, NOTE_F5,8, NOTE_G5,8,
+  47              NOTE_G5,8, NOTE_F5,8, NOTE_E5,8, NOTE_D5,8,
+  48              NOTE_C5,8, NOTE_C5,8, NOTE_D5,8, NOTE_E5,8,
+  49              NOTE_E5,12, NOTE_D5,4, NOTE_D5,16, NOTE_REST,4,
+  50              NOTE_E5,8, NOTE_E5,8, NOTE_F5,8, NOTE_G5,8,
+  51              NOTE_G5,8, NOTE_F5,8, NOTE_E5,8, NOTE_D5,8,
+  52              NOTE_C5,8, NOTE_C5,8, NOTE_D5,8, NOTE_E5,8,
+  53              NOTE_D5,12, NOTE_C5,4, NOTE_C5,16, NOTE_REST,6,
+  54          
+C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 15:09:59 PAGE 2   
 
-  55          
-  56          static unsigned char code MelodyOffsets[4] = { 0U, 32U, 96U, 148U };
-  57          
-  58          static unsigned int code ToneReloads[12] =
-  59          {
-  60              T1_RELOAD(262UL), T1_RELOAD(294UL), T1_RELOAD(330UL),
-  61              T1_RELOAD(349UL), T1_RELOAD(392UL), T1_RELOAD(440UL),
-  62              T1_RELOAD(494UL), T1_RELOAD(523UL), T1_RELOAD(587UL),
-  63              T1_RELOAD(659UL), T1_RELOAD(698UL), T1_RELOAD(784UL)
-  64          };
-  65          
-  66          static unsigned char data MelodyStart;
-  67          static unsigned char data MelodyEnd;
-  68          static unsigned char data MelodyPosition;
-  69          static unsigned int data NoteRemainingMs;
-  70          static unsigned int data PlayRemainingMs;
-  71          static volatile bit ToneActive;
-  72          volatile bit MusicPlaying;
-  73          
-  74          static void Music_LoadNextNote(void)
-  75          {
-  76   1          unsigned char data note;
-  77   1          unsigned int data reload;
-  78   1      
-  79   1          if (MelodyPosition >= MelodyEnd) MelodyPosition = MelodyStart;
-  80   1          note = MelodyData[MelodyPosition++];
-  81   1          NoteRemainingMs = (unsigned int)MelodyData[MelodyPosition++] * NOTE_UNIT_MS;
-  82   1      
-  83   1          ET1 = 0;
-  84   1          TR1 = 0;
-  85   1          TF1 = 0;
-  86   1          ToneActive = 0;
-  87   1          MUSIC_BUZZER = 1;
-  88   1          if (note != NOTE_REST)
-  89   1          {
-  90   2              reload = ToneReloads[note - 1U];
-  91   2              TH1 = (unsigned char)(reload >> 8);
-  92   2              TL1 = (unsigned char)reload;
-  93   2              ToneActive = 1;
-  94   2              TR1 = 1;
-  95   2          }
-  96   1          ET1 = 1;
-  97   1      }
-  98          
-  99          void Music_Init(void)
- 100          {
- 101   1          TR1 = 0;
- 102   1          /* STC15 mode 0 is a 16-bit auto-reload timer. */
- 103   1          TMOD &= 0x0FU;
- 104   1          AUXR |= 0x40U;
- 105   1          TF1 = 0;
- 106   1          PT1 = 1;
- 107   1          ET1 = 1;
- 108   1          ToneActive = 0;
- 109   1          MusicPlaying = 0;
- 110   1          MUSIC_BUZZER = 1;
- 111   1      }
- 112          
- 113          void Music_Start(unsigned char melody, unsigned int limit_ms)
- 114          {
- 115   1          if (melody >= MUSIC_COUNT) melody = 0;
- 116   1          ET0 = 0;
-C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 12:45:06 PAGE 3   
+  55              /* 2: Happy Birthday */
+  56              NOTE_G5,4, NOTE_G5,4, NOTE_A5,8, NOTE_G5,8,
+  57              NOTE_C6,8, NOTE_B5,16, NOTE_G5,4, NOTE_G5,4,
+  58              NOTE_A5,8, NOTE_G5,8, NOTE_D6,8, NOTE_C6,16,
+  59              NOTE_G5,4, NOTE_G5,4, NOTE_G6,8, NOTE_E6,8,
+  60              NOTE_C6,8, NOTE_B5,8, NOTE_A5,16,
+  61              NOTE_F6,4, NOTE_F6,4, NOTE_E6,8, NOTE_C6,8,
+  62              NOTE_D6,8, NOTE_C6,16, NOTE_REST,4
+  63          };
+  64          
+  65          static unsigned char code MelodyOffsets[4] = { 0U, 86U, 150U, 202U };
+  66          
+  67          static unsigned int code ToneReloads[12] =
+  68          {
+  69              T0_RELOAD(523UL), T0_RELOAD(587UL), T0_RELOAD(659UL),
+  70              T0_RELOAD(698UL), T0_RELOAD(784UL), T0_RELOAD(880UL),
+  71              T0_RELOAD(988UL), T0_RELOAD(1047UL), T0_RELOAD(1175UL),
+  72              T0_RELOAD(1319UL), T0_RELOAD(1397UL), T0_RELOAD(1568UL)
+  73          };
+  74          
+  75          static unsigned char data MelodyStart;
+  76          static unsigned char data MelodyEnd;
+  77          static unsigned char data MelodyPosition;
+  78          static unsigned int data NoteRemainingMs;
+  79          static unsigned int data PlayRemainingMs;
+  80          static unsigned char data ClockTickRemainingMs;
+  81          static volatile bit ToneActive;
+  82          volatile bit MusicPlaying;
+  83          
+  84          static void Music_StopTone(void)
+  85          {
+  86   1          INT_CLKO &= ~0x01U;
+  87   1          TR0 = 0;
+  88   1          TF0 = 0;
+  89   1          ToneActive = 0;
+  90   1          MUSIC_BUZZER = 1;
+  91   1      }
+  92          
+  93          static void Music_StartTone(unsigned int reload)
+  94          {
+  95   1          Music_StopTone();
+  96   1          TL0 = (unsigned char)reload;
+  97   1          TH0 = (unsigned char)(reload >> 8);
+  98   1          ToneActive = 1;
+  99   1          TR0 = 1;
+ 100   1          INT_CLKO |= 0x01U;
+ 101   1      }
+ 102          
+ 103          static void Music_LoadNextNote(void)
+ 104          {
+ 105   1          unsigned char data note;
+ 106   1      
+ 107   1          if (MelodyPosition >= MelodyEnd) MelodyPosition = MelodyStart;
+ 108   1          note = MelodyData[MelodyPosition++];
+ 109   1          NoteRemainingMs = (unsigned int)MelodyData[MelodyPosition++] * NOTE_UNIT_MS;
+ 110   1      
+ 111   1          Music_StopTone();
+ 112   1          if (note != NOTE_REST)
+ 113   1              Music_StartTone(ToneReloads[note - 1U]);
+ 114   1      }
+ 115          
+ 116          void Music_Init(void)
+C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 15:09:59 PAGE 3   
 
- 117   1          ET1 = 0;
- 118   1          TR1 = 0;
- 119   1          ToneActive = 0;
- 120   1          MusicPlaying = 0;
- 121   1          MelodyStart = MelodyOffsets[melody];
- 122   1          MelodyEnd = MelodyOffsets[melody + 1U];
- 123   1          MelodyPosition = MelodyStart;
- 124   1          PlayRemainingMs = limit_ms;
- 125   1          MusicPlaying = 1;
- 126   1          Music_LoadNextNote();
- 127   1          ET0 = 1;
- 128   1      }
- 129          
- 130          void Music_Stop(void)
- 131          {
- 132   1          ET0 = 0;
- 133   1          ET1 = 0;
- 134   1          TR1 = 0;
- 135   1          TF1 = 0;
- 136   1          ToneActive = 0;
- 137   1          MusicPlaying = 0;
- 138   1          MUSIC_BUZZER = 1;
- 139   1          ET1 = 1;
- 140   1          ET0 = 1;
- 141   1      }
- 142          
- 143          void Music_Tick1ms(void)
- 144          {
- 145   1          if (!MusicPlaying) return;
- 146   1      
- 147   1          if (PlayRemainingMs != 0U)
- 148   1          {
- 149   2              if (--PlayRemainingMs == 0U)
- 150   2              {
- 151   3                  Music_Stop();
- 152   3                  return;
- 153   3              }
- 154   2          }
- 155   1      
- 156   1          if (NoteRemainingMs != 0U)
- 157   1          {
- 158   2              NoteRemainingMs--;
- 159   2              if ((NoteRemainingMs == NOTE_GAP_MS) && ToneActive)
- 160   2              {
- 161   3                  ET1 = 0;
- 162   3                  TR1 = 0;
- 163   3                  TF1 = 0;
- 164   3                  ToneActive = 0;
- 165   3                  MUSIC_BUZZER = 1;
- 166   3                  ET1 = 1;
- 167   3              }
- 168   2              if (NoteRemainingMs == 0U) Music_LoadNextNote();
- 169   2          }
- 170   1      }
- 171          
- 172          void Timer1_Isr(void) interrupt 3 using 3
- 173          {
- 174   1          if ((!MusicPlaying) || (!ToneActive))
- 175   1          {
- 176   2              MUSIC_BUZZER = 1;
- 177   2              return;
- 178   2          }
-C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 12:45:06 PAGE 4   
+ 117          {
+ 118   1          ET0 = 0;
+ 119   1          TR0 = 0;
+ 120   1          /* STC15 Timer0 mode 0: 16-bit auto-reload, 1T hardware output. */
+ 121   1          TMOD &= 0xF0U;
+ 122   1          AUXR |= 0x80U;
+ 123   1          TF0 = 0;
+ 124   1          INT_CLKO &= ~0x01U;
+ 125   1          ToneActive = 0;
+ 126   1          MusicPlaying = 0;
+ 127   1          ClockTickRemainingMs = 0;
+ 128   1          MUSIC_BUZZER = 1;
+ 129   1      }
+ 130          
+ 131          void Music_Start(unsigned char melody, unsigned int limit_ms)
+ 132          {
+ 133   1          if (melody >= MUSIC_COUNT) melody = 0;
+ 134   1          ET1 = 0;
+ 135   1          Music_StopTone();
+ 136   1          MusicPlaying = 0;
+ 137   1          ClockTickRemainingMs = 0;
+ 138   1          MelodyStart = MelodyOffsets[melody];
+ 139   1          MelodyEnd = MelodyOffsets[melody + 1U];
+ 140   1          MelodyPosition = MelodyStart;
+ 141   1          PlayRemainingMs = limit_ms;
+ 142   1          MusicPlaying = 1;
+ 143   1          Music_LoadNextNote();
+ 144   1          ET1 = 1;
+ 145   1      }
+ 146          
+ 147          void Music_StartClockTick(void)
+ 148          {
+ 149   1          if (MusicPlaying) return;
+ 150   1          ET1 = 0;
+ 151   1          ClockTickRemainingMs = CLOCK_TICK_SOUND_MS;
+ 152   1          Music_StartTone((unsigned int)T0_RELOAD(CLOCK_TICK_HZ));
+ 153   1          ET1 = 1;
+ 154   1      }
+ 155          
+ 156          void Music_Stop(void)
+ 157          {
+ 158   1          ET1 = 0;
+ 159   1          Music_StopTone();
+ 160   1          MusicPlaying = 0;
+ 161   1          ClockTickRemainingMs = 0;
+ 162   1          MUSIC_BUZZER = 1;
+ 163   1          ET1 = 1;
+ 164   1      }
+ 165          
+ 166          void Music_Tick1ms(void)
+ 167          {
+ 168   1          if (!MusicPlaying)
+ 169   1          {
+ 170   2              if ((ClockTickRemainingMs != 0U) &&
+ 171   2                  (--ClockTickRemainingMs == 0U))
+ 172   2                  Music_StopTone();
+ 173   2              return;
+ 174   2          }
+ 175   1      
+ 176   1          if (PlayRemainingMs != 0U)
+ 177   1          {
+ 178   2              if (--PlayRemainingMs == 0U)
+C51 COMPILER V9.60.7.0   MUSIC                                                             09/11/2026 15:09:59 PAGE 4   
 
- 179   1          MUSIC_BUZZER = !MUSIC_BUZZER;
- 180   1      }
+ 179   2              {
+ 180   3                  Music_Stop();
+ 181   3                  return;
+ 182   3              }
+ 183   2          }
+ 184   1      
+ 185   1          if (NoteRemainingMs != 0U)
+ 186   1          {
+ 187   2              NoteRemainingMs--;
+ 188   2              if ((NoteRemainingMs == NOTE_GAP_MS) && ToneActive)
+ 189   2                  Music_StopTone();
+ 190   2              if (NoteRemainingMs == 0U) Music_LoadNextNote();
+ 191   2          }
+ 192   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    246    ----
-   CONSTANT SIZE    =    176    ----
+   CODE SIZE        =    271    ----
+   CONSTANT SIZE    =    230    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =      7    ----
+   DATA SIZE        =      8    ----
    IDATA SIZE       =   ----    ----
    BIT SIZE         =      2    ----
 END OF MODULE INFORMATION.

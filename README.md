@@ -26,7 +26,7 @@ is fitted between P4.5 and VCCD; the other H2 position connects VCCD directly to
 - `Application/app.c`: four display states and the complete edit workflow.
 - `Drivers/board.c`: GPIO, Timer1 display scan, clock timebase, alarm and
   P1.0/ADC0 temperature measurement.
-- `Drivers/music.c`: Timer0 hardware tone output, four built-in melodies,
+- `Drivers/music.c`: Timer0 hardware tone output, three built-in melodies,
   clock tick and alarm/preview sequencing.
 - `Drivers/keys.c`: key debounce and long-press repeat.
 - `Drivers/uart1.c`: UART1 initialization and time/alarm-frame parser.
@@ -80,7 +80,7 @@ decimal point is illuminated after the second digit.
   `HH` and `MM` are packed BCD. A valid frame updates that alarm, selects its
   display and is acknowledged with byte `06`.
 - Extended alarm frame: `03 NN HH MM MU AA`. `MU` is the binary melody number
-  01-04. It updates the alarm time and melody in one acknowledged operation.
+  01-03. It updates the alarm time and melody in one acknowledged operation.
 
 Example: set the clock to 19:35:50 by sending these hexadecimal bytes:
 
@@ -104,14 +104,13 @@ success only after receiving the MCU's `06` ACK.
 - Startup clock: 12:00:00.
 - Three alarms: 08:00, 12:00 and 16:00. All three are active, and each can be
   selected and edited independently.
-- The four selectable melodies are `Ode to Joy`, `Castle in the Sky`,
-  `Merry Christmas, Mr. Lawrence` and `Counter-clockwise Clock`. Alarm 1,
-  alarm 2 and alarm 3 default to melodies 1, 2 and 3 respectively; melody 4
-  can be selected while editing or with the PC tool. The selected melody
-  repeats for up to 30 seconds; any button stops it.
-- The melody driver provides chromatic pitches from C5 to C7, song-specific
-  timing and a 25 ms gap between notes for clear articulation on the board's
-  passive buzzer.
+- The three selectable melodies are `Ode to Joy`, `Castle in the Sky` and
+  `Counter-clockwise Clock`. Alarm 1, alarm 2 and alarm 3 default to melodies
+  1, 2 and 3 respectively. The selected melody repeats for up to 30 seconds;
+  any button stops it.
+- The melodies use the C5-E6 range (including F-sharp), song-specific timing
+  and a 25 ms gap between notes for clear articulation on the board's passive
+  buzzer.
 - Alarm duration: up to 30 seconds, looping the selected passive-buzzer melody.
 - Clock tick: a 40 ms, 500 Hz tone on each second while the clock display is
   selected. The alarm has priority over this short tone.

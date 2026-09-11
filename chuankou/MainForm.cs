@@ -17,7 +17,7 @@ namespace SerialTimeSync
         private static readonly string[] MelodyNames =
         {
             "音乐1 · 欢乐颂", "音乐2 · 天空之城",
-            "音乐3 · 圣诞快乐，劳伦斯先生", "音乐4 · 反方向的钟"
+            "音乐3 · 反方向的钟"
         };
 
         private readonly ComboBox portCombo = new ComboBox();

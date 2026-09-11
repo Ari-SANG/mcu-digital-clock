@@ -5,8 +5,8 @@
 #define FOSC                    11059200L
 #define UART1_BAUD              115200L
 
-/* User settings. Change the student number only here. */
-#define STUDENT_ID_TEXT         "202600000000"
+/* User settings. */
+#define STUDENT_ID_TEXT         "202436100135"
 #define CLOCK_START_HOUR        12U
 #define CLOCK_START_MINUTE      0U
 #define CLOCK_START_SECOND      0U

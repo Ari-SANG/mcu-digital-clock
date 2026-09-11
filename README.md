@@ -8,9 +8,8 @@ ZJNU EELab V1.3 digital-clock board.
 ## Before programming
 
 1. Open `Uart1_Demo.uvproj` in Keil uVision.
-2. Replace only `STUDENT_ID_TEXT` in `config.h`. A four-digit ID
-   is displayed steadily; a longer ID (for example, 12 digits) scrolls
-   continuously. The length is calculated automatically.
+2. The student number is configured as `STUDENT_ID_TEXT` in `config.h`. Its
+   complete value scrolls, while its last four digits form the fixed display.
 3. Keep the STC clock setting at 11.0592 MHz so the timer and UART calculations
    match the firmware. This value was confirmed from the connected MCU's UART
    baud rate.
@@ -43,6 +42,8 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
 - P1.5 while editing: increment the flashing field.
 - P1.5 in the normal clock display: enable or disable the once-per-second
   ticking sound. The ticking sound is enabled by default.
+- P1.5 in the student ID display: switch between scrolling `202436100135` and
+  the fixed four-digit form `0135`. Power-on defaults to the scrolling form.
 - P1.5 in the normal alarm display: cycle through alarm 1, alarm 2 and alarm 3.
 - Hold P1.4 or P1.5 for 600 ms to start automatic repeat (every 120 ms).
 - P1.3 while editing: confirm the field and move to the next one. Clock editing

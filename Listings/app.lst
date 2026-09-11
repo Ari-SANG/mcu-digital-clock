@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 09:55:38 PAGE 1   
+C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 10:24:16 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE APP
@@ -23,211 +23,222 @@ line level    source
   13          
   14          unsigned char code StudentId[] = STUDENT_ID_TEXT;
   15          #define STUDENT_ID_LEN ((unsigned char)(sizeof(StudentId) - 1U))
-  16          
-  17          static unsigned char data DisplayState;
-  18          static unsigned char data EditItem;
-  19          static unsigned char data ClockPage;
-  20          static unsigned char data StudentPos;
-  21          static bit ClockTickEnabled;
-  22          static unsigned int data UiTicks;
-  23          
-  24          static void App_Render(void);
-  25          static void App_HandleKeys(unsigned char events);
-  26          
-  27          void App_Init(void)
-  28          {
-  29   1          DisplayState = STATE_CLOCK;
-  30   1          EditItem = FIELD_NONE;
-  31   1          ClockPage = 0;
-  32   1          StudentPos = 0;
-  33   1          ClockTickEnabled = CLOCK_TICK_DEFAULT_ON;
-  34   1          UiTicks = 0;
-  35   1          App_Render();
-  36   1      }
-  37          
-  38          void App_Service(void)
-  39          {
-  40   1          unsigned char data hour;
-  41   1          unsigned char data minute;
-  42   1          unsigned char data second;
-  43   1          unsigned char data alarm_index;
-  44   1          unsigned char data second_event;
-  45   1      
-  46   1          if (Uart1_TakeTime(&hour, &minute, &second))
-  47   1          {
-  48   2              Board_SetTime(hour, minute, second);
-  49   2              DisplayState = STATE_CLOCK;
-  50   2              EditItem = FIELD_NONE;
-  51   2              UiTicks = 0;
-  52   2              App_Render();
-  53   2          }
-  54   1      
-C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 09:55:38 PAGE 2   
+  16          #define STUDENT_FIXED_POS (STUDENT_ID_LEN - 4U)
+  17          #define STUDENT_FIXED_FLAG 0x80U
+  18          
+  19          static unsigned char data DisplayState;
+  20          static unsigned char data EditItem;
+  21          static unsigned char data ClockPage;
+  22          static unsigned char data StudentPos;
+  23          static bit ClockTickEnabled;
+  24          static unsigned int data UiTicks;
+  25          
+  26          static void App_Render(void);
+  27          static void App_HandleKeys(unsigned char events);
+  28          
+  29          void App_Init(void)
+  30          {
+  31   1          DisplayState = STATE_CLOCK;
+  32   1          EditItem = FIELD_NONE;
+  33   1          ClockPage = 0;
+  34   1          StudentPos = 0;
+  35   1          ClockTickEnabled = CLOCK_TICK_DEFAULT_ON;
+  36   1          UiTicks = 0;
+  37   1          App_Render();
+  38   1      }
+  39          
+  40          void App_Service(void)
+  41          {
+  42   1          unsigned char data hour;
+  43   1          unsigned char data minute;
+  44   1          unsigned char data second;
+  45   1          unsigned char data alarm_index;
+  46   1          unsigned char data second_event;
+  47   1      
+  48   1          if (Uart1_TakeTime(&hour, &minute, &second))
+  49   1          {
+  50   2              Board_SetTime(hour, minute, second);
+  51   2              DisplayState = STATE_CLOCK;
+  52   2              EditItem = FIELD_NONE;
+  53   2              UiTicks = 0;
+  54   2              App_Render();
+C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 10:24:16 PAGE 2   
 
-  55   1          if (Uart1_TakeAlarm(&alarm_index, &hour, &minute))
-  56   1          {
-  57   2              Board_SetAlarm(alarm_index, hour, minute);
-  58   2              DisplayState = STATE_ALARM;
-  59   2              EditItem = FIELD_NONE;
-  60   2              UiTicks = 0;
-  61   2              App_Render();
-  62   2          }
-  63   1      
-  64   1          second_event = Board_TakeSecondEvent();
-  65   1          if (second_event)
-  66   1          {
-  67   2              if ((DisplayState == STATE_CLOCK) && ClockTickEnabled)
-  68   2                  Board_StartClockTick();
-  69   2      
-  70   2              if ((ClockSecond == 0U) &&
-  71   2                  Board_IsAlarmTime(ClockHour, ClockMinute))
-  72   2                  Board_StartAlarm();
-  73   2          }
-  74   1      }
-  75          
-  76          void App_Tick10ms(unsigned char key_events)
-  77          {
-  78   1          if (key_events != KEY_EVENT_NONE)
-  79   1              App_HandleKeys(key_events);
-  80   1      
-  81   1          UiTicks++;
-  82   1          if ((DisplayState == STATE_STUDENT) &&
-  83   1              (StudentId[4] != '\0') &&
-  84   1              (UiTicks >= STUDENT_SCROLL_TICKS))
-  85   1          {
-  86   2              UiTicks = 0;
-  87   2              if (++StudentPos > (STUDENT_ID_LEN - 4U)) StudentPos = 0;
-  88   2          }
-  89   1          else if ((DisplayState == STATE_CLOCK) &&
-  90   1                   (EditItem == FIELD_NONE) &&
-  91   1                   (UiTicks >= CLOCK_PAGE_TICKS))
-  92   1          {
-  93   2              UiTicks = 0;
-  94   2              ClockPage = !ClockPage;
-  95   2          }
-  96   1      
-  97   1          App_Render();
-  98   1      }
-  99          
- 100          static void App_HandleKeys(unsigned char events)
- 101          {
- 102   1          if (AlarmRinging)
- 103   1          {
- 104   2              Board_StopAlarm();
- 105   2              return;
- 106   2          }
- 107   1      
- 108   1          UiTicks = 0;
+  55   2          }
+  56   1      
+  57   1          if (Uart1_TakeAlarm(&alarm_index, &hour, &minute))
+  58   1          {
+  59   2              Board_SetAlarm(alarm_index, hour, minute);
+  60   2              DisplayState = STATE_ALARM;
+  61   2              EditItem = FIELD_NONE;
+  62   2              UiTicks = 0;
+  63   2              App_Render();
+  64   2          }
+  65   1      
+  66   1          second_event = Board_TakeSecondEvent();
+  67   1          if (second_event)
+  68   1          {
+  69   2              if ((DisplayState == STATE_CLOCK) && ClockTickEnabled)
+  70   2                  Board_StartClockTick();
+  71   2      
+  72   2              if ((ClockSecond == 0U) &&
+  73   2                  Board_IsAlarmTime(ClockHour, ClockMinute))
+  74   2                  Board_StartAlarm();
+  75   2          }
+  76   1      }
+  77          
+  78          void App_Tick10ms(unsigned char key_events)
+  79          {
+  80   1          if (key_events != KEY_EVENT_NONE)
+  81   1              App_HandleKeys(key_events);
+  82   1      
+  83   1          UiTicks++;
+  84   1          if ((DisplayState == STATE_STUDENT) &&
+  85   1              ((StudentPos & STUDENT_FIXED_FLAG) == 0U) &&
+  86   1              (UiTicks >= STUDENT_SCROLL_TICKS))
+  87   1          {
+  88   2              UiTicks = 0;
+  89   2              if (++StudentPos > STUDENT_FIXED_POS) StudentPos = 0;
+  90   2          }
+  91   1          else if ((DisplayState == STATE_CLOCK) &&
+  92   1                   (EditItem == FIELD_NONE) &&
+  93   1                   (UiTicks >= CLOCK_PAGE_TICKS))
+  94   1          {
+  95   2              UiTicks = 0;
+  96   2              ClockPage = !ClockPage;
+  97   2          }
+  98   1      
+  99   1          App_Render();
+ 100   1      }
+ 101          
+ 102          static void App_HandleKeys(unsigned char events)
+ 103          {
+ 104   1          if (AlarmRinging)
+ 105   1          {
+ 106   2              Board_StopAlarm();
+ 107   2              return;
+ 108   2          }
  109   1      
- 110   1          if (events & KEY_EVENT_MODE)
- 111   1          {
- 112   2              if (EditItem != FIELD_NONE)
- 113   2              {
- 114   3                  if ((DisplayState == STATE_CLOCK) && (EditItem < FIELD_SECOND))
- 115   3                      EditItem++;
- 116   3                  else if ((DisplayState == STATE_ALARM) && (EditItem < FIELD_MINUTE))
-C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 09:55:38 PAGE 3   
+ 110   1          UiTicks = 0;
+ 111   1      
+ 112   1          if (events & KEY_EVENT_MODE)
+ 113   1          {
+ 114   2              if (EditItem != FIELD_NONE)
+ 115   2              {
+ 116   3                  if ((DisplayState == STATE_CLOCK) && (EditItem < FIELD_SECOND))
+C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 10:24:16 PAGE 3   
 
  117   3                      EditItem++;
- 118   3                  else
- 119   3                      EditItem = FIELD_NONE;
- 120   3              }
- 121   2              else
- 122   2              {
- 123   3                  if (++DisplayState > STATE_ALARM) DisplayState = STATE_CLOCK;
- 124   3                  if (DisplayState == STATE_STUDENT) StudentPos = 0;
- 125   3              }
- 126   2              return;
- 127   2          }
- 128   1      
- 129   1          if (events & KEY_EVENT_MINUS)
- 130   1          {
- 131   2              if ((EditItem == FIELD_NONE) &&
- 132   2                  ((DisplayState == STATE_CLOCK) || (DisplayState == STATE_ALARM)))
- 133   2                  EditItem = FIELD_HOUR;
- 134   2              else if (EditItem != FIELD_NONE)
- 135   2              {
- 136   3                  if (DisplayState == STATE_CLOCK)
- 137   3                      Board_AdjustClock(EditItem, 0U);
- 138   3                  else
- 139   3                      Board_AdjustAlarm(EditItem, 0U);
- 140   3              }
- 141   2          }
- 142   1      
- 143   1          if ((events & KEY_EVENT_PLUS) && (EditItem == FIELD_NONE))
- 144   1          {
- 145   2              if (DisplayState == STATE_CLOCK)
- 146   2                  ClockTickEnabled = !ClockTickEnabled;
- 147   2              else if (DisplayState == STATE_ALARM)
- 148   2                  Board_SelectNextAlarm();
- 149   2          }
- 150   1          else if ((events & (KEY_EVENT_PLUS | KEY_EVENT_PLUS_REPEAT)) &&
- 151   1                   (EditItem != FIELD_NONE))
- 152   1          {
- 153   2              if (DisplayState == STATE_CLOCK)
- 154   2                  Board_AdjustClock(EditItem, 1U);
- 155   2              else
- 156   2                  Board_AdjustAlarm(EditItem, 1U);
- 157   2          }
- 158   1      }
- 159          
- 160          static void App_Render(void)
- 161          {
- 162   1          unsigned char d0;
- 163   1          unsigned char d1;
- 164   1          unsigned char d2;
- 165   1          unsigned char d3;
- 166   1          unsigned char blink;
- 167   1          unsigned char colon;
- 168   1          unsigned char alarm_hour;
- 169   1          unsigned char alarm_minute;
- 170   1      
- 171   1          blink = 0;
- 172   1          colon = COLON_ON;
- 173   1      
- 174   1          if (DisplayState == STATE_STUDENT)
- 175   1          {
- 176   2              d0 = StudentId[StudentPos] - '0';
- 177   2              d1 = StudentId[StudentPos + 1U] - '0';
- 178   2              d2 = StudentId[StudentPos + 2U] - '0';
-C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 09:55:38 PAGE 4   
+ 118   3                  else if ((DisplayState == STATE_ALARM) && (EditItem < FIELD_MINUTE))
+ 119   3                      EditItem++;
+ 120   3                  else
+ 121   3                      EditItem = FIELD_NONE;
+ 122   3              }
+ 123   2              else
+ 124   2              {
+ 125   3                  if (++DisplayState > STATE_ALARM) DisplayState = STATE_CLOCK;
+ 126   3                  if (DisplayState == STATE_STUDENT) StudentPos = 0;
+ 127   3              }
+ 128   2              return;
+ 129   2          }
+ 130   1      
+ 131   1          if (events & KEY_EVENT_MINUS)
+ 132   1          {
+ 133   2              if ((EditItem == FIELD_NONE) &&
+ 134   2                  ((DisplayState == STATE_CLOCK) || (DisplayState == STATE_ALARM)))
+ 135   2                  EditItem = FIELD_HOUR;
+ 136   2              else if (EditItem != FIELD_NONE)
+ 137   2              {
+ 138   3                  if (DisplayState == STATE_CLOCK)
+ 139   3                      Board_AdjustClock(EditItem, 0U);
+ 140   3                  else
+ 141   3                      Board_AdjustAlarm(EditItem, 0U);
+ 142   3              }
+ 143   2          }
+ 144   1      
+ 145   1          if ((events & KEY_EVENT_PLUS) && (EditItem == FIELD_NONE))
+ 146   1          {
+ 147   2              if (DisplayState == STATE_CLOCK)
+ 148   2                  ClockTickEnabled = !ClockTickEnabled;
+ 149   2              else if (DisplayState == STATE_STUDENT)
+ 150   2              {
+ 151   3                  if (StudentPos & STUDENT_FIXED_FLAG)
+ 152   3                      StudentPos = 0;
+ 153   3                  else
+ 154   3                      StudentPos = STUDENT_FIXED_FLAG | STUDENT_FIXED_POS;
+ 155   3              }
+ 156   2              else if (DisplayState == STATE_ALARM)
+ 157   2                  Board_SelectNextAlarm();
+ 158   2          }
+ 159   1          else if ((events & (KEY_EVENT_PLUS | KEY_EVENT_PLUS_REPEAT)) &&
+ 160   1                   (EditItem != FIELD_NONE))
+ 161   1          {
+ 162   2              if (DisplayState == STATE_CLOCK)
+ 163   2                  Board_AdjustClock(EditItem, 1U);
+ 164   2              else
+ 165   2                  Board_AdjustAlarm(EditItem, 1U);
+ 166   2          }
+ 167   1      }
+ 168          
+ 169          static void App_Render(void)
+ 170          {
+ 171   1          unsigned char d0;
+ 172   1          unsigned char d1;
+ 173   1          unsigned char d2;
+ 174   1          unsigned char d3;
+ 175   1          unsigned char blink;
+ 176   1          unsigned char colon;
+ 177   1          unsigned char alarm_hour;
+ 178   1          unsigned char alarm_minute;
+C51 COMPILER V9.60.7.0   APP                                                               09/11/2026 10:24:16 PAGE 4   
 
- 179   2              d3 = StudentId[StudentPos + 3U] - '0';
- 180   2              colon = COLON_OFF;
- 181   2          }
- 182   1          else if (DisplayState == STATE_CLOCK)
- 183   1          {
- 184   2              if ((EditItem != FIELD_SECOND) &&
- 185   2                  ((EditItem != FIELD_NONE) || (ClockPage == 0U)))
- 186   2              {
- 187   3                  d0 = ClockHour / 10U; d1 = ClockHour % 10U;
- 188   3                  d2 = ClockMinute / 10U; d3 = ClockMinute % 10U;
- 189   3              }
- 190   2              else
- 191   2              {
- 192   3                  d0 = ClockMinute / 10U; d1 = ClockMinute % 10U;
- 193   3                  d2 = ClockSecond / 10U; d3 = ClockSecond % 10U;
- 194   3              }
- 195   2              colon = (EditItem == FIELD_NONE) ? COLON_BLINK : COLON_ON;
- 196   2              if (EditItem == FIELD_HOUR) blink = 0x03;
- 197   2              else if (EditItem != FIELD_NONE) blink = 0x0C;
- 198   2          }
- 199   1          else
- 200   1          {
- 201   2              alarm_hour = Board_GetAlarmHour();
- 202   2              alarm_minute = Board_GetAlarmMinute();
- 203   2              d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
- 204   2              d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
- 205   2              if (EditItem == FIELD_HOUR) blink = 0x03;
- 206   2              else if (EditItem == FIELD_MINUTE) blink = 0x0C;
- 207   2          }
- 208   1      
- 209   1          Board_SetDisplay(d0, d1, d2, d3, blink, colon);
- 210   1      }
+ 179   1          unsigned char student_pos;
+ 180   1      
+ 181   1          blink = 0;
+ 182   1          colon = COLON_ON;
+ 183   1      
+ 184   1          if (DisplayState == STATE_STUDENT)
+ 185   1          {
+ 186   2              student_pos = StudentPos & 0x7FU;
+ 187   2              d0 = StudentId[student_pos] - '0';
+ 188   2              d1 = StudentId[student_pos + 1U] - '0';
+ 189   2              d2 = StudentId[student_pos + 2U] - '0';
+ 190   2              d3 = StudentId[student_pos + 3U] - '0';
+ 191   2              colon = COLON_OFF;
+ 192   2          }
+ 193   1          else if (DisplayState == STATE_CLOCK)
+ 194   1          {
+ 195   2              if ((EditItem != FIELD_SECOND) &&
+ 196   2                  ((EditItem != FIELD_NONE) || (ClockPage == 0U)))
+ 197   2              {
+ 198   3                  d0 = ClockHour / 10U; d1 = ClockHour % 10U;
+ 199   3                  d2 = ClockMinute / 10U; d3 = ClockMinute % 10U;
+ 200   3              }
+ 201   2              else
+ 202   2              {
+ 203   3                  d0 = ClockMinute / 10U; d1 = ClockMinute % 10U;
+ 204   3                  d2 = ClockSecond / 10U; d3 = ClockSecond % 10U;
+ 205   3              }
+ 206   2              colon = (EditItem == FIELD_NONE) ? COLON_BLINK : COLON_ON;
+ 207   2              if (EditItem == FIELD_HOUR) blink = 0x03;
+ 208   2              else if (EditItem != FIELD_NONE) blink = 0x0C;
+ 209   2          }
+ 210   1          else
+ 211   1          {
+ 212   2              alarm_hour = Board_GetAlarmHour();
+ 213   2              alarm_minute = Board_GetAlarmMinute();
+ 214   2              d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
+ 215   2              d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
+ 216   2              if (EditItem == FIELD_HOUR) blink = 0x03;
+ 217   2              else if (EditItem == FIELD_MINUTE) blink = 0x0C;
+ 218   2          }
+ 219   1      
+ 220   1          Board_SetDisplay(d0, d1, d2, d3, blink, colon);
+ 221   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    610    ----
+   CODE SIZE        =    626    ----
    CONSTANT SIZE    =     13    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----

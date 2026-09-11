@@ -13,6 +13,8 @@
 
 unsigned char code StudentId[] = STUDENT_ID_TEXT;
 #define STUDENT_ID_LEN ((unsigned char)(sizeof(StudentId) - 1U))
+#define STUDENT_FIXED_POS (STUDENT_ID_LEN - 4U)
+#define STUDENT_FIXED_FLAG 0x80U
 
 static unsigned char data DisplayState;
 static unsigned char data EditItem;
@@ -80,11 +82,11 @@ void App_Tick10ms(unsigned char key_events)
 
     UiTicks++;
     if ((DisplayState == STATE_STUDENT) &&
-        (StudentId[4] != '\0') &&
+        ((StudentPos & STUDENT_FIXED_FLAG) == 0U) &&
         (UiTicks >= STUDENT_SCROLL_TICKS))
     {
         UiTicks = 0;
-        if (++StudentPos > (STUDENT_ID_LEN - 4U)) StudentPos = 0;
+        if (++StudentPos > STUDENT_FIXED_POS) StudentPos = 0;
     }
     else if ((DisplayState == STATE_CLOCK) &&
              (EditItem == FIELD_NONE) &&
@@ -144,6 +146,13 @@ static void App_HandleKeys(unsigned char events)
     {
         if (DisplayState == STATE_CLOCK)
             ClockTickEnabled = !ClockTickEnabled;
+        else if (DisplayState == STATE_STUDENT)
+        {
+            if (StudentPos & STUDENT_FIXED_FLAG)
+                StudentPos = 0;
+            else
+                StudentPos = STUDENT_FIXED_FLAG | STUDENT_FIXED_POS;
+        }
         else if (DisplayState == STATE_ALARM)
             Board_SelectNextAlarm();
     }
@@ -167,16 +176,18 @@ static void App_Render(void)
     unsigned char colon;
     unsigned char alarm_hour;
     unsigned char alarm_minute;
+    unsigned char student_pos;
 
     blink = 0;
     colon = COLON_ON;
 
     if (DisplayState == STATE_STUDENT)
     {
-        d0 = StudentId[StudentPos] - '0';
-        d1 = StudentId[StudentPos + 1U] - '0';
-        d2 = StudentId[StudentPos + 2U] - '0';
-        d3 = StudentId[StudentPos + 3U] - '0';
+        student_pos = StudentPos & 0x7FU;
+        d0 = StudentId[student_pos] - '0';
+        d1 = StudentId[student_pos + 1U] - '0';
+        d2 = StudentId[student_pos + 2U] - '0';
+        d3 = StudentId[student_pos + 3U] - '0';
         colon = COLON_OFF;
     }
     else if (DisplayState == STATE_CLOCK)

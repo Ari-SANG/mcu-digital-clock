@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 09:55:38 PAGE 1   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 10:24:16 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE BOARD
@@ -62,7 +62,7 @@ line level    source
   52   1          BUZZER = 1;
   53   1      
   54   1          P2M1 = 0x00;
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 09:55:38 PAGE 2   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 10:24:16 PAGE 2   
 
   55   1          P2M0 = 0xFF;
   56   1          P3M1 &= ~0xE0;
@@ -126,7 +126,7 @@ line level    source
  114   1      }
  115          
  116          void Board_SetDisplay(unsigned char d0, unsigned char d1,
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 09:55:38 PAGE 3   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 10:24:16 PAGE 3   
 
  117                                unsigned char d2, unsigned char d3,
  118                                unsigned char blink_mask, unsigned char colon_mode)
@@ -190,7 +190,7 @@ line level    source
  176   1          {
  177   2              if (field == FIELD_HOUR)
  178   2                  AlarmHours[SelectedAlarm] = (AlarmHours[SelectedAlarm] == 0U) ?
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 09:55:38 PAGE 4   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 10:24:16 PAGE 4   
 
  179   2                                              23U : AlarmHours[SelectedAlarm] - 1U;
  180   2              else
@@ -254,7 +254,7 @@ line level    source
  238   1          AlarmRinging = 0;
  239   1          BUZZER = 1;
  240   1      }
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 09:55:38 PAGE 5   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 10:24:16 PAGE 5   
 
  241          
  242          void Timer0_Isr(void) interrupt 1 using 1
@@ -318,7 +318,7 @@ line level    source
  300   2          }
  301   1      }
 
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 09:55:38 PAGE 6   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 10:24:16 PAGE 6   
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE

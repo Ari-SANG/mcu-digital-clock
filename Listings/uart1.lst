@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 09:55:38 PAGE 1   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:24:17 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE UART1
@@ -62,7 +62,7 @@ line level    source
   52   1          EA = 0;
   53   1          *hour = NewHour;
   54   1          *minute = NewMinute;
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 09:55:38 PAGE 2   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:24:17 PAGE 2   
 
   55   1          *second = NewSecond;
   56   1          NewTimeReady = 0;
@@ -126,7 +126,7 @@ line level    source
  114   5                          NewAlarmIndex = RxData[0] - 1U;
  115   5                          NewAlarmHour = hour;
  116   5                          NewAlarmMinute = minute;
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 09:55:38 PAGE 3   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:24:17 PAGE 3   
 
  117   5                          NewAlarmReady = 1;
  118   5                          SBUF = 0x06U;

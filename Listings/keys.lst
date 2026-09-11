@@ -1,10 +1,10 @@
-C51 COMPILER V9.60.7.0   KEYS                                                              09/11/2026 10:24:17 PAGE 1   
+C51 COMPILER V9.60.7.0   KEYS                                                              09/11/2026 10:34:56 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE KEYS
 OBJECT MODULE PLACED IN .\Objects\keys.obj
-COMPILER INVOKED BY: D:\MDK5.36\C51\BIN\C51.EXE Drivers\keys.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.;.\Application;.\Drivers
-                    -) DEBUG OBJECTEXTEND PRINT(.\Listings\keys.lst) OBJECT(.\Objects\keys.obj)
+COMPILER INVOKED BY: D:\MDK5.36\C51\BIN\C51.EXE Drivers\keys.c OPTIMIZE(9,SIZE) BROWSE INCDIR(.;.\Application;.\Drivers)
+                    - DEBUG OBJECTEXTEND PRINT(.\Listings\keys.lst) OBJECT(.\Objects\keys.obj)
 
 line level    source
 
@@ -62,7 +62,7 @@ line level    source
   52   4                  }
   53   3                  else
   54   3                  {
-C51 COMPILER V9.60.7.0   KEYS                                                              09/11/2026 10:24:17 PAGE 2   
+C51 COMPILER V9.60.7.0   KEYS                                                              09/11/2026 10:34:56 PAGE 2   
 
   55   4                      KeyStable &= ~mask;
   56   4                      KeyHold[i] = 0;

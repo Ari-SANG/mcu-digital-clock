@@ -23,8 +23,9 @@ is fitted between P4.5 and VCCD; the other H2 position connects VCCD directly to
 
 - `main.c`: initialization and foreground scheduling only.
 - `config.h`: student ID, startup time, alarm defaults and timing constants.
-- `Application/app.c`: three display states and the complete edit workflow.
-- `Drivers/board.c`: GPIO, display scan, clock timebase, alarm and buzzer.
+- `Application/app.c`: four display states and the complete edit workflow.
+- `Drivers/board.c`: GPIO, display scan, clock timebase, alarm, buzzer and
+  P1.0/ADC0 temperature measurement.
 - `Drivers/keys.c`: key debounce and long-press repeat.
 - `Drivers/uart1.c`: UART1 initialization and time-frame parser.
 - `chuankou/`: C# WinForms serial tool, source code and compiled EXE.
@@ -36,7 +37,8 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
 
 - After power-on the clock display is selected. Because the board has four
   digits, it alternates every three seconds between HH:MM and MM:SS.
-- P1.3 in normal display mode: clock -> student ID -> alarm -> clock.
+- P1.3 in normal display mode: clock -> student ID -> alarm -> room
+  temperature -> clock.
 - P1.4 in clock/alarm mode: enter editing at the hour field.
 - P1.4 while editing: decrement the flashing field.
 - P1.5 while editing: increment the flashing field.
@@ -53,6 +55,13 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
 
 The display scan and clock timebase run in the 1 ms Timer0 interrupt, so button
 handling does not stop or visibly block the display.
+
+## Room temperature
+
+The fourth display state reads the board's 10 kOhm, B=3950 NTC divider through
+P1.0/ADC0. The 10-bit ADC result is converted to tenths of a degree Celsius for
+normal indoor temperatures. For example, `261C` means 26.1 degrees Celsius; the
+decimal point is illuminated after the second digit.
 
 ## UART1 time synchronization
 
@@ -71,7 +80,8 @@ Example: set the clock to 19:35:50 by sending these hexadecimal bytes:
 01 19 35 50 AA
 ```
 
-Frames with an invalid length, BCD digit or time range are ignored.
+Frames with an unsupported command, invalid length or out-of-range time are
+ignored. The supplied PC tool always generates valid packed-BCD fields.
 
 ## PC time synchronization tool
 

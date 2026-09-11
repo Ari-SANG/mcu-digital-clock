@@ -1,10 +1,10 @@
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:24:17 PAGE 1   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:39:24 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE UART1
 OBJECT MODULE PLACED IN .\Objects\uart1.obj
-COMPILER INVOKED BY: D:\MDK5.36\C51\BIN\C51.EXE Drivers\uart1.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.;.\Application;.\Driver
-                    -s) DEBUG OBJECTEXTEND PRINT(.\Listings\uart1.lst) OBJECT(.\Objects\uart1.obj)
+COMPILER INVOKED BY: D:\MDK5.36\C51\BIN\C51.EXE Drivers\uart1.c OPTIMIZE(9,SIZE) BROWSE INCDIR(.;.\Application;.\Drivers
+                    -) DEBUG OBJECTEXTEND PRINT(.\Listings\uart1.lst) OBJECT(.\Objects\uart1.obj)
 
 line level    source
 
@@ -62,7 +62,7 @@ line level    source
   52   1          EA = 0;
   53   1          *hour = NewHour;
   54   1          *minute = NewMinute;
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:24:17 PAGE 2   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:39:24 PAGE 2   
 
   55   1          *second = NewSecond;
   56   1          NewTimeReady = 0;
@@ -97,49 +97,44 @@ line level    source
   85   2              else
   86   2              {
   87   3                  RxState = 0;
-  88   3                  if ((value == 0xAAU) && (RxCommand == 0x01U) &&
-  89   3                      ((RxData[0] & 0x0FU) <= 9U) && ((RxData[0] >> 4) <= 9U) &&
-  90   3                      ((RxData[1] & 0x0FU) <= 9U) && ((RxData[1] >> 4) <= 9U) &&
-  91   3                      ((RxData[2] & 0x0FU) <= 9U) && ((RxData[2] >> 4) <= 9U))
-  92   3                  {
-  93   4                      hour = (RxData[0] >> 4) * 10U + (RxData[0] & 0x0FU);
-  94   4                      minute = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
-  95   4                      second = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
-  96   4                      if ((hour < 24U) && (minute < 60U) && (second < 60U))
-  97   4                      {
-  98   5                          NewHour = hour;
-  99   5                          NewMinute = minute;
- 100   5                          NewSecond = second;
- 101   5                          NewTimeReady = 1;
- 102   5                          SBUF = 0x06U;
- 103   5                      }
- 104   4                  }
- 105   3                  else if ((value == 0xAAU) && (RxCommand == 0x02U) &&
- 106   3                           (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
- 107   3                           ((RxData[1] & 0x0FU) <= 9U) && ((RxData[1] >> 4) <= 9U) &&
- 108   3                           ((RxData[2] & 0x0FU) <= 9U) && ((RxData[2] >> 4) <= 9U))
- 109   3                  {
- 110   4                      hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
- 111   4                      minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
- 112   4                      if ((hour < 24U) && (minute < 60U))
- 113   4                      {
- 114   5                          NewAlarmIndex = RxData[0] - 1U;
- 115   5                          NewAlarmHour = hour;
- 116   5                          NewAlarmMinute = minute;
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:24:17 PAGE 3   
+  88   3                  if ((value == 0xAAU) && (RxCommand == 0x01U))
+  89   3                  {
+  90   4                      hour = (RxData[0] >> 4) * 10U + (RxData[0] & 0x0FU);
+  91   4                      minute = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
+  92   4                      second = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
+  93   4                      if ((hour < 24U) && (minute < 60U) && (second < 60U))
+  94   4                      {
+  95   5                          NewHour = hour;
+  96   5                          NewMinute = minute;
+  97   5                          NewSecond = second;
+  98   5                          NewTimeReady = 1;
+  99   5                          SBUF = 0x06U;
+ 100   5                      }
+ 101   4                  }
+ 102   3                  else if ((value == 0xAAU) && (RxCommand == 0x02U) &&
+ 103   3                           (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT))
+ 104   3                  {
+ 105   4                      hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
+ 106   4                      minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
+ 107   4                      if ((hour < 24U) && (minute < 60U))
+ 108   4                      {
+ 109   5                          NewAlarmIndex = RxData[0] - 1U;
+ 110   5                          NewAlarmHour = hour;
+ 111   5                          NewAlarmMinute = minute;
+ 112   5                          NewAlarmReady = 1;
+ 113   5                          SBUF = 0x06U;
+ 114   5                      }
+ 115   4                  }
+ 116   3              }
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:39:24 PAGE 3   
 
- 117   5                          NewAlarmReady = 1;
- 118   5                          SBUF = 0x06U;
- 119   5                      }
- 120   4                  }
- 121   3              }
- 122   2          }
- 123   1          if (TI) TI = 0;
- 124   1      }
+ 117   2          }
+ 118   1          if (TI) TI = 0;
+ 119   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    431    ----
+   CODE SIZE        =    313    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----

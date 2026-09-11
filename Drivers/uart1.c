@@ -85,10 +85,7 @@ void Uart1_Isr(void) interrupt 4 using 2
         else
         {
             RxState = 0;
-            if ((value == 0xAAU) && (RxCommand == 0x01U) &&
-                ((RxData[0] & 0x0FU) <= 9U) && ((RxData[0] >> 4) <= 9U) &&
-                ((RxData[1] & 0x0FU) <= 9U) && ((RxData[1] >> 4) <= 9U) &&
-                ((RxData[2] & 0x0FU) <= 9U) && ((RxData[2] >> 4) <= 9U))
+            if ((value == 0xAAU) && (RxCommand == 0x01U))
             {
                 hour = (RxData[0] >> 4) * 10U + (RxData[0] & 0x0FU);
                 minute = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
@@ -103,9 +100,7 @@ void Uart1_Isr(void) interrupt 4 using 2
                 }
             }
             else if ((value == 0xAAU) && (RxCommand == 0x02U) &&
-                     (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
-                     ((RxData[1] & 0x0FU) <= 9U) && ((RxData[1] >> 4) <= 9U) &&
-                     ((RxData[2] & 0x0FU) <= 9U) && ((RxData[2] >> 4) <= 9U))
+                     (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT))
             {
                 hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
                 minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);

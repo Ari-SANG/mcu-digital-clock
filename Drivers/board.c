@@ -15,10 +15,10 @@ sbit COLON = P4^4;
 sbit VCCD_ENABLE = P4^5;
 sbit BUZZER = P3^5;
 
-static unsigned char code SegCode[11] =
+static unsigned char code SegCode[12] =
 {
     0x3F, 0x06, 0x5B, 0x4F, 0x66,
-    0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x00
+    0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x00, 0x39
 };
 
 static volatile unsigned char data Disp[4];
@@ -36,9 +36,9 @@ static volatile bit Tick10ms;
 static volatile bit SecondEvent;
 static unsigned char data Divider10ms;
 
-static unsigned char data AlarmHours[ALARM_COUNT];
-static unsigned char data AlarmMinutes[ALARM_COUNT];
-static unsigned char data SelectedAlarm;
+unsigned char data AlarmHours[ALARM_COUNT];
+unsigned char data AlarmMinutes[ALARM_COUNT];
+unsigned char data SelectedAlarm;
 static volatile unsigned int data AlarmMs;
 static volatile unsigned char data ClockTickMs;
 volatile bit AlarmRinging;
@@ -57,6 +57,10 @@ void Board_Init(void)
     P3M0 |= 0xE0;
     P4M1 &= ~0x36;
     P4M0 |= 0x36;
+    P1M1 |= 0x01;
+    P1M0 &= ~0x01;
+    P1ASF = 0x01;
+    ADC_CONTR = 0x80;
     INT_CLKO &= ~0x01;
 
     ClockHour = CLOCK_START_HOUR;
@@ -98,19 +102,33 @@ void Board_Init(void)
 bit Board_Take10msTick(void)
 {
     if (!Tick10ms) return 0;
-    EA = 0;
     Tick10ms = 0;
-    EA = 1;
     return 1;
 }
 
 bit Board_TakeSecondEvent(void)
 {
     if (!SecondEvent) return 0;
-    EA = 0;
     SecondEvent = 0;
-    EA = 1;
     return 1;
+}
+
+unsigned char Board_ReadTemperature(unsigned char data *decimal)
+{
+    unsigned int data adc;
+    unsigned char data whole;
+
+    ADC_CONTR = 0x88;
+    while ((ADC_CONTR & 0x10U) == 0U);
+    ADC_CONTR &= ~0x10U;
+    adc = ((unsigned int)ADC_RES << 2) | ADC_RESL;
+    adc -= adc >> 4;
+    if (adc < 230U) adc = 230U;
+    adc -= 230U;
+    whole = 0;
+    while (adc >= 10U) { adc -= 10U; whole++; }
+    *decimal = (unsigned char)adc;
+    return whole;
 }
 
 void Board_SetDisplay(unsigned char d0, unsigned char d1,
@@ -186,7 +204,6 @@ void Board_AdjustAlarm(unsigned char field, unsigned char increase)
 void Board_SetAlarm(unsigned char index, unsigned char hour,
                     unsigned char minute)
 {
-    if (index >= ALARM_COUNT) return;
     AlarmHours[index] = hour;
     AlarmMinutes[index] = minute;
     SelectedAlarm = index;
@@ -196,16 +213,6 @@ void Board_SelectNextAlarm(void)
 {
     if (++SelectedAlarm >= ALARM_COUNT)
         SelectedAlarm = 0;
-}
-
-unsigned char Board_GetAlarmHour(void)
-{
-    return AlarmHours[SelectedAlarm];
-}
-
-unsigned char Board_GetAlarmMinute(void)
-{
-    return AlarmMinutes[SelectedAlarm];
 }
 
 bit Board_IsAlarmTime(unsigned char hour, unsigned char minute)
@@ -229,8 +236,7 @@ void Board_StartAlarm(void)
 
 void Board_StartClockTick(void)
 {
-    if (!AlarmRinging)
-        ClockTickMs = CLOCK_TICK_SOUND_MS;
+    ClockTickMs = CLOCK_TICK_SOUND_MS;
 }
 
 void Board_StopAlarm(void)
@@ -249,6 +255,8 @@ void Timer0_Isr(void) interrupt 1 using 1
     pattern = SegCode[Disp[ScanIndex]];
     if ((!BlinkVisible) && ((BlinkMask & (1U << ScanIndex)) != 0U))
         pattern = 0;
+    if ((ColonMode == COLON_DECIMAL) && (ScanIndex == 1U))
+        pattern |= 0x80U;
     P2 = ~pattern;
 
     if (ScanIndex == 0U) DIG1 = 0;

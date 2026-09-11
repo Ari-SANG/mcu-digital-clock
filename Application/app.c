@@ -10,6 +10,7 @@
 #define STATE_CLOCK      0U
 #define STATE_STUDENT    1U
 #define STATE_ALARM      2U
+#define STATE_TEMPERATURE 3U
 
 unsigned char code StudentId[] = STUDENT_ID_TEXT;
 #define STUDENT_ID_LEN ((unsigned char)(sizeof(StudentId) - 1U))
@@ -122,7 +123,7 @@ static void App_HandleKeys(unsigned char events)
         }
         else
         {
-            if (++DisplayState > STATE_ALARM) DisplayState = STATE_CLOCK;
+            if (++DisplayState > STATE_TEMPERATURE) DisplayState = STATE_CLOCK;
             if (DisplayState == STATE_STUDENT) StudentPos = 0;
         }
         return;
@@ -177,6 +178,8 @@ static void App_Render(void)
     unsigned char alarm_hour;
     unsigned char alarm_minute;
     unsigned char student_pos;
+    unsigned char temperature;
+    unsigned char temperature_decimal;
 
     blink = 0;
     colon = COLON_ON;
@@ -207,14 +210,23 @@ static void App_Render(void)
         if (EditItem == FIELD_HOUR) blink = 0x03;
         else if (EditItem != FIELD_NONE) blink = 0x0C;
     }
-    else
+    else if (DisplayState == STATE_ALARM)
     {
-        alarm_hour = Board_GetAlarmHour();
-        alarm_minute = Board_GetAlarmMinute();
+        alarm_hour = AlarmHours[SelectedAlarm];
+        alarm_minute = AlarmMinutes[SelectedAlarm];
         d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
         d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
         if (EditItem == FIELD_HOUR) blink = 0x03;
         else if (EditItem == FIELD_MINUTE) blink = 0x0C;
+    }
+    else
+    {
+        temperature = Board_ReadTemperature(&temperature_decimal);
+        d0 = temperature / 10U;
+        d1 = temperature % 10U;
+        d2 = temperature_decimal;
+        d3 = DISPLAY_C;
+        colon = COLON_DECIMAL;
     }
 
     Board_SetDisplay(d0, d1, d2, d3, blink, colon);

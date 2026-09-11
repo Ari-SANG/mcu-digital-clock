@@ -41,6 +41,8 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
 - P1.4 in clock/alarm mode: enter editing at the hour field.
 - P1.4 while editing: decrement the flashing field.
 - P1.5 while editing: increment the flashing field.
+- P1.5 in the normal clock display: enable or disable the once-per-second
+  ticking sound. The ticking sound is enabled by default.
 - Hold P1.4 or P1.5 for 600 ms to start automatic repeat (every 120 ms).
 - P1.3 while editing: confirm the field and move to the next one. Clock editing
   follows hour -> minute -> second -> finish; alarm editing follows hour ->
@@ -78,3 +80,5 @@ and the interface reports success only after receiving the MCU's `06` ACK.
 - Startup clock: 12:00:00.
 - Alarm: 07:30, enabled.
 - Alarm duration: 30 seconds, using a 500 Hz passive-buzzer waveform.
+- Clock tick: a 40 ms, 500 Hz tone on each second while the clock display is
+  selected. The alarm has priority over this short tone.

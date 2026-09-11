@@ -19,6 +19,8 @@
 #define KEY_DEBOUNCE_TICKS      3U
 #define KEY_REPEAT_START_TICKS  60U
 #define KEY_REPEAT_STEP_TICKS   12U
+#define CLOCK_TICK_DEFAULT_ON   1U
+#define CLOCK_TICK_SOUND_MS     40U
 #define ALARM_RING_MS           30000U
 
 #endif

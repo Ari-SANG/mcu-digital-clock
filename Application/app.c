@@ -1,5 +1,5 @@
 /* Display states, edit workflow, student ID scrolling and alarm decisions. */
-//三种显示状态、学号滚动和修改流程
+//涓夌鏄剧ず鐘舵�併�佸鍙锋粴鍔ㄥ拰淇敼娴佺▼
 
 #include "app.h"
 #include "board.h"
@@ -18,6 +18,7 @@ static unsigned char data DisplayState;
 static unsigned char data EditItem;
 static unsigned char data ClockPage;
 static unsigned char data StudentPos;
+static bit ClockTickEnabled;
 static unsigned int data UiTicks;
 
 static void App_Render(void);
@@ -29,6 +30,7 @@ void App_Init(void)
     EditItem = FIELD_NONE;
     ClockPage = 0;
     StudentPos = 0;
+    ClockTickEnabled = CLOCK_TICK_DEFAULT_ON;
     UiTicks = 0;
     App_Render();
 }
@@ -38,6 +40,7 @@ void App_Service(void)
     unsigned char data hour;
     unsigned char data minute;
     unsigned char data second;
+    unsigned char data second_event;
 
     if (Uart1_TakeTime(&hour, &minute, &second))
     {
@@ -48,11 +51,17 @@ void App_Service(void)
         App_Render();
     }
 
-    if (Board_TakeSecondEvent() &&
-        (ClockSecond == 0U) &&
-        (ClockHour == AlarmHour) &&
-        (ClockMinute == AlarmMinute))
-        Board_StartAlarm();
+    second_event = Board_TakeSecondEvent();
+    if (second_event)
+    {
+        if ((DisplayState == STATE_CLOCK) && ClockTickEnabled)
+            Board_StartClockTick();
+
+        if ((ClockSecond == 0U) &&
+            (ClockHour == AlarmHour) &&
+            (ClockMinute == AlarmMinute))
+            Board_StartAlarm();
+    }
 }
 
 void App_Tick10ms(unsigned char key_events)
@@ -122,7 +131,14 @@ static void App_HandleKeys(unsigned char events)
         }
     }
 
-    if ((events & KEY_EVENT_PLUS) && (EditItem != FIELD_NONE))
+    if ((events & KEY_EVENT_PLUS) &&
+        (EditItem == FIELD_NONE) &&
+        (DisplayState == STATE_CLOCK))
+    {
+        ClockTickEnabled = !ClockTickEnabled;
+    }
+    else if ((events & (KEY_EVENT_PLUS | KEY_EVENT_PLUS_REPEAT)) &&
+             (EditItem != FIELD_NONE))
     {
         if (DisplayState == STATE_CLOCK)
             Board_AdjustClock(EditItem, 1U);

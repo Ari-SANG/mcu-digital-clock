@@ -1,5 +1,5 @@
 /* Board GPIO, 1 ms timer, display scan, clock timebase and buzzer output. */
-//ÊıÂë¹ÜÉ¨Ãè¡¢Ê±ÖÓ¼ÆÊ±¡¢GPIO¡¢ÄÖÖÓºÍ·äÃùÆ÷
+//æ•°ç ç®¡æ‰«æã€æ—¶é’Ÿè®¡æ—¶ã€GPIOã€é—¹é’Ÿå’Œèœ‚é¸£å™¨
 
 #include <STC15.H>
 #include "board.h"
@@ -39,6 +39,7 @@ static unsigned char data Divider10ms;
 unsigned char data AlarmHour;
 unsigned char data AlarmMinute;
 static volatile unsigned int data AlarmMs;
+static volatile unsigned char data ClockTickMs;
 volatile bit AlarmRinging;
 
 void Board_Init(void)
@@ -65,6 +66,7 @@ void Board_Init(void)
     AlarmMinute = ALARM_START_MINUTE;
     AlarmRinging = 0;
     AlarmMs = 0;
+    ClockTickMs = 0;
 
     Disp[0] = 10U; Disp[1] = 10U; Disp[2] = 10U; Disp[3] = 10U;
     BlinkMask = 0;
@@ -167,8 +169,15 @@ void Board_AdjustAlarm(unsigned char field, unsigned char increase)
 
 void Board_StartAlarm(void)
 {
+    ClockTickMs = 0;
     AlarmMs = 0;
     AlarmRinging = 1;
+}
+
+void Board_StartClockTick(void)
+{
+    if (!AlarmRinging)
+        ClockTickMs = CLOCK_TICK_SOUND_MS;
 }
 
 void Board_StopAlarm(void)
@@ -223,6 +232,11 @@ void Timer0_Isr(void) interrupt 1 using 1
     {
         BUZZER = !BUZZER;
         if (++AlarmMs >= ALARM_RING_MS) Board_StopAlarm();
+    }
+    else if (ClockTickMs != 0U)
+    {
+        BUZZER = !BUZZER;
+        if (--ClockTickMs == 0U) BUZZER = 1;
     }
     else BUZZER = 1;
 

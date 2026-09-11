@@ -1,5 +1,5 @@
 /* P1.3/P1.4/P1.5 debounce and non-blocking hold-repeat generation. */
-//°´¼üÏû¶¶Óë³¤°´Á¬·¢
+//æŒ‰é”®æ¶ˆæŠ–ä¸é•¿æŒ‰è¿å‘
 
 #include <STC15.H>
 #include "config.h"
@@ -61,7 +61,10 @@ unsigned char Keys_Scan10ms(void)
         {
             if (++KeyHold[i] >= KEY_REPEAT_START_TICKS)
             {
-                events |= mask;
+                if (mask == KEY_EVENT_PLUS)
+                    events |= KEY_EVENT_PLUS_REPEAT;
+                else
+                    events |= mask;
                 KeyHold[i] = KEY_REPEAT_START_TICKS - KEY_REPEAT_STEP_TICKS;
             }
         }

@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   KEYS                                                              09/10/2026 20:54:21 PAGE 1   
+C51 COMPILER V9.60.7.0   KEYS                                                              09/11/2026 09:31:59 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE KEYS
@@ -9,7 +9,7 @@ COMPILER INVOKED BY: D:\MDK5.36\C51\BIN\C51.EXE Drivers\keys.c OPTIMIZE(8,SPEED)
 line level    source
 
    1          /* P1.3/P1.4/P1.5 debounce and non-blocking hold-repeat generation. */
-   2          //∞¥º¸œ˚∂∂”Î≥§∞¥¡¨∑¢
+   2          //ÊåâÈîÆÊ∂àÊäñ‰∏éÈïøÊåâËøûÂèë
    3          
    4          #include <STC15.H>
    5          #include "config.h"
@@ -62,7 +62,7 @@ line level    source
   52   4                  }
   53   3                  else
   54   3                  {
-C51 COMPILER V9.60.7.0   KEYS                                                              09/10/2026 20:54:21 PAGE 2   
+C51 COMPILER V9.60.7.0   KEYS                                                              09/11/2026 09:31:59 PAGE 2   
 
   55   4                      KeyStable &= ~mask;
   56   4                      KeyHold[i] = 0;
@@ -73,17 +73,20 @@ line level    source
   61   2              {
   62   3                  if (++KeyHold[i] >= KEY_REPEAT_START_TICKS)
   63   3                  {
-  64   4                      events |= mask;
-  65   4                      KeyHold[i] = KEY_REPEAT_START_TICKS - KEY_REPEAT_STEP_TICKS;
-  66   4                  }
-  67   3              }
-  68   2          }
-  69   1          return events;
-  70   1      }
+  64   4                      if (mask == KEY_EVENT_PLUS)
+  65   4                          events |= KEY_EVENT_PLUS_REPEAT;
+  66   4                      else
+  67   4                          events |= mask;
+  68   4                      KeyHold[i] = KEY_REPEAT_START_TICKS - KEY_REPEAT_STEP_TICKS;
+  69   4                  }
+  70   3              }
+  71   2          }
+  72   1          return events;
+  73   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    143    ----
+   CODE SIZE        =    151    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----

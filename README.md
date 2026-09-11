@@ -28,6 +28,8 @@ is fitted between P4.5 and VCCD; the other H2 position connects VCCD directly to
   P1.0/ADC0 temperature measurement.
 - `Drivers/music.c`: Timer0 hardware tone output, three built-in melodies,
   clock tick and alarm/preview sequencing.
+- `Drivers/settings.c`: power-loss-safe internal EEPROM journal for the clock
+  and all three alarm configurations.
 - `Drivers/keys.c`: key debounce and long-press repeat.
 - `Drivers/uart1.c`: UART1 initialization and time/alarm-frame parser.
 - `chuankou/`: C# WinForms serial tool, source code and compiled EXE.
@@ -90,6 +92,25 @@ Example: set the clock to 19:35:50 by sending these hexadecimal bytes:
 
 Frames with an unsupported command, invalid length or out-of-range time are
 ignored. The supplied PC tool always generates valid packed-BCD fields.
+
+## Power-off settings storage
+
+The internal EEPROM stores the current hour, minute and second together with
+the time and melody of all three alarms. A record is written only after the
+last field of a button edit is confirmed, or after a valid UART time/alarm
+frame is accepted. Normal clock ticks, long-press repeats and display changes
+do not write EEPROM.
+
+Two 512-byte EEPROM sectors at IAP addresses `0000H` and `0200H` form an
+append-only journal. Each record has a format version, sequence number, CRC-8
+and a commit marker written last. If power fails during a write, the firmware
+loads the preceding complete record. Missing, damaged or out-of-range records
+fall back to the defaults in `config.h`.
+
+Power-off time does not elapse: without an external battery-backed RTC, the
+clock restarts from its latest saved snapshot. When programming new firmware,
+configure the STC download tool to preserve EEPROM and enable the option that
+forbids EEPROM operations at low voltage.
 
 ## PC time synchronization tool
 

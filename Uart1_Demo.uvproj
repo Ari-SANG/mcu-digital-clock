@@ -411,6 +411,11 @@
               <FileType>1</FileType>
               <FilePath>.\Drivers\music.c</FilePath>
             </File>
+            <File>
+              <FileName>settings.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\settings.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -445,6 +450,11 @@
               <FileName>music.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Drivers\music.h</FilePath>
+            </File>
+            <File>
+              <FileName>settings.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Drivers\settings.h</FilePath>
             </File>
           </Files>
         </Group>

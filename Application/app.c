@@ -6,6 +6,7 @@
 #include "config.h"
 #include "keys.h"
 #include "music.h"
+#include "settings.h"
 #include "uart1.h"
 
 #define STATE_CLOCK      0U
@@ -52,6 +53,7 @@ void App_Service(void)
     {
         if (!AlarmRinging) Music_Stop();
         Board_SetTime(hour, minute, second);
+        Settings_RequestSave();
         DisplayState = STATE_CLOCK;
         EditItem = FIELD_NONE;
         UiTicks = 0;
@@ -62,6 +64,7 @@ void App_Service(void)
     {
         if (!AlarmRinging) Music_Stop();
         Board_SetAlarm(alarm_index, hour, minute, alarm_melody);
+        Settings_RequestSave();
         DisplayState = STATE_ALARM;
         EditItem = FIELD_NONE;
         UiTicks = 0;
@@ -128,6 +131,7 @@ static void App_HandleKeys(unsigned char events)
             }
             else
             {
+                Settings_RequestSave();
                 EditItem = FIELD_NONE;
                 Music_Stop();
             }

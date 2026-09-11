@@ -3,6 +3,7 @@
 ".\Objects\board.obj",
 ".\Objects\keys.obj",
 ".\Objects\uart1.obj",
-".\Objects\music.obj" 
+".\Objects\music.obj",
+".\Objects\settings.obj" 
 TO ".\Objects\Uart1_Demo" 
 PRINT(".\Listings\Uart1_Demo.m51") RAMSIZE(256) 

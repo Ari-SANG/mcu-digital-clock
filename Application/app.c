@@ -58,8 +58,7 @@ void App_Service(void)
             Board_StartClockTick();
 
         if ((ClockSecond == 0U) &&
-            (ClockHour == AlarmHour) &&
-            (ClockMinute == AlarmMinute))
+            Board_IsAlarmTime(ClockHour, ClockMinute))
             Board_StartAlarm();
     }
 }
@@ -131,11 +130,12 @@ static void App_HandleKeys(unsigned char events)
         }
     }
 
-    if ((events & KEY_EVENT_PLUS) &&
-        (EditItem == FIELD_NONE) &&
-        (DisplayState == STATE_CLOCK))
+    if ((events & KEY_EVENT_PLUS) && (EditItem == FIELD_NONE))
     {
-        ClockTickEnabled = !ClockTickEnabled;
+        if (DisplayState == STATE_CLOCK)
+            ClockTickEnabled = !ClockTickEnabled;
+        else if (DisplayState == STATE_ALARM)
+            Board_SelectNextAlarm();
     }
     else if ((events & (KEY_EVENT_PLUS | KEY_EVENT_PLUS_REPEAT)) &&
              (EditItem != FIELD_NONE))
@@ -155,6 +155,8 @@ static void App_Render(void)
     unsigned char d3;
     unsigned char blink;
     unsigned char colon;
+    unsigned char alarm_hour;
+    unsigned char alarm_minute;
 
     blink = 0;
     colon = COLON_ON;
@@ -186,8 +188,10 @@ static void App_Render(void)
     }
     else
     {
-        d0 = AlarmHour / 10U; d1 = AlarmHour % 10U;
-        d2 = AlarmMinute / 10U; d3 = AlarmMinute % 10U;
+        alarm_hour = Board_GetAlarmHour();
+        alarm_minute = Board_GetAlarmMinute();
+        d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
+        d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
         if (EditItem == FIELD_HOUR) blink = 0x03;
         else if (EditItem == FIELD_MINUTE) blink = 0x0C;
     }

@@ -10,8 +10,13 @@
 #define CLOCK_START_HOUR        12U
 #define CLOCK_START_MINUTE      0U
 #define CLOCK_START_SECOND      0U
-#define ALARM_START_HOUR        7U
-#define ALARM_START_MINUTE      30U
+#define ALARM_COUNT             3U
+#define ALARM1_START_HOUR       8U
+#define ALARM1_START_MINUTE     0U
+#define ALARM2_START_HOUR       12U
+#define ALARM2_START_MINUTE     0U
+#define ALARM3_START_HOUR       16U
+#define ALARM3_START_MINUTE     0U
 
 /* UI timings are counted in 10 ms scheduler ticks. */
 #define STUDENT_SCROLL_TICKS    70U

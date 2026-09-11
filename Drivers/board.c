@@ -36,8 +36,9 @@ static volatile bit Tick10ms;
 static volatile bit SecondEvent;
 static unsigned char data Divider10ms;
 
-unsigned char data AlarmHour;
-unsigned char data AlarmMinute;
+static unsigned char data AlarmHours[ALARM_COUNT];
+static unsigned char data AlarmMinutes[ALARM_COUNT];
+static unsigned char data SelectedAlarm;
 static volatile unsigned int data AlarmMs;
 static volatile unsigned char data ClockTickMs;
 volatile bit AlarmRinging;
@@ -62,8 +63,13 @@ void Board_Init(void)
     ClockMinute = CLOCK_START_MINUTE;
     ClockSecond = CLOCK_START_SECOND;
     ClockMillisecond = 0;
-    AlarmHour = ALARM_START_HOUR;
-    AlarmMinute = ALARM_START_MINUTE;
+    AlarmHours[0] = ALARM1_START_HOUR;
+    AlarmMinutes[0] = ALARM1_START_MINUTE;
+    AlarmHours[1] = ALARM2_START_HOUR;
+    AlarmMinutes[1] = ALARM2_START_MINUTE;
+    AlarmHours[2] = ALARM3_START_HOUR;
+    AlarmMinutes[2] = ALARM3_START_MINUTE;
+    SelectedAlarm = 0;
     AlarmRinging = 0;
     AlarmMs = 0;
     ClockTickMs = 0;
@@ -155,16 +161,54 @@ void Board_AdjustAlarm(unsigned char field, unsigned char increase)
 {
     if (increase)
     {
-        if (field == FIELD_HOUR) { if (++AlarmHour >= 24U) AlarmHour = 0; }
-        else { if (++AlarmMinute >= 60U) AlarmMinute = 0; }
+        if (field == FIELD_HOUR)
+        {
+            if (++AlarmHours[SelectedAlarm] >= 24U)
+                AlarmHours[SelectedAlarm] = 0;
+        }
+        else
+        {
+            if (++AlarmMinutes[SelectedAlarm] >= 60U)
+                AlarmMinutes[SelectedAlarm] = 0;
+        }
     }
     else
     {
         if (field == FIELD_HOUR)
-            AlarmHour = (AlarmHour == 0U) ? 23U : AlarmHour - 1U;
+            AlarmHours[SelectedAlarm] = (AlarmHours[SelectedAlarm] == 0U) ?
+                                        23U : AlarmHours[SelectedAlarm] - 1U;
         else
-            AlarmMinute = (AlarmMinute == 0U) ? 59U : AlarmMinute - 1U;
+            AlarmMinutes[SelectedAlarm] = (AlarmMinutes[SelectedAlarm] == 0U) ?
+                                          59U : AlarmMinutes[SelectedAlarm] - 1U;
     }
+}
+
+void Board_SelectNextAlarm(void)
+{
+    if (++SelectedAlarm >= ALARM_COUNT)
+        SelectedAlarm = 0;
+}
+
+unsigned char Board_GetAlarmHour(void)
+{
+    return AlarmHours[SelectedAlarm];
+}
+
+unsigned char Board_GetAlarmMinute(void)
+{
+    return AlarmMinutes[SelectedAlarm];
+}
+
+bit Board_IsAlarmTime(unsigned char hour, unsigned char minute)
+{
+    unsigned char data i;
+
+    for (i = 0; i < ALARM_COUNT; i++)
+    {
+        if ((hour == AlarmHours[i]) && (minute == AlarmMinutes[i]))
+            return 1;
+    }
+    return 0;
 }
 
 void Board_StartAlarm(void)

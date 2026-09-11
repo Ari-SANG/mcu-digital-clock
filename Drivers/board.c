@@ -4,6 +4,7 @@
 #include <STC15.H>
 #include "board.h"
 #include "config.h"
+#include "music.h"
 
 #define T0_RELOAD (65536UL - FOSC / 1000UL)
 
@@ -15,10 +16,10 @@ sbit COLON = P4^4;
 sbit VCCD_ENABLE = P4^5;
 sbit BUZZER = P3^5;
 
-static unsigned char code SegCode[12] =
+static unsigned char code SegCode[14] =
 {
     0x3F, 0x06, 0x5B, 0x4F, 0x66,
-    0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x00, 0x39
+    0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x00, 0x39, 0x77, 0x40
 };
 
 static volatile unsigned char data Disp[4];
@@ -38,6 +39,7 @@ static unsigned char data Divider10ms;
 
 unsigned char data AlarmHours[ALARM_COUNT];
 unsigned char data AlarmMinutes[ALARM_COUNT];
+unsigned char data AlarmMelodies[ALARM_COUNT];
 unsigned char data SelectedAlarm;
 static volatile unsigned int data AlarmMs;
 static volatile unsigned char data ClockTickMs;
@@ -73,6 +75,9 @@ void Board_Init(void)
     AlarmMinutes[1] = ALARM2_START_MINUTE;
     AlarmHours[2] = ALARM3_START_HOUR;
     AlarmMinutes[2] = ALARM3_START_MINUTE;
+    AlarmMelodies[0] = ALARM1_START_MUSIC;
+    AlarmMelodies[1] = ALARM2_START_MUSIC;
+    AlarmMelodies[2] = ALARM3_START_MUSIC;
     SelectedAlarm = 0;
     AlarmRinging = 0;
     AlarmMs = 0;
@@ -177,35 +182,50 @@ void Board_AdjustClock(unsigned char field, unsigned char increase)
 
 void Board_AdjustAlarm(unsigned char field, unsigned char increase)
 {
+    unsigned char data *value;
+
+    if (field == FIELD_MUSIC)
+    {
+        if (increase)
+        {
+            if (++AlarmMelodies[SelectedAlarm] >= MUSIC_COUNT)
+                AlarmMelodies[SelectedAlarm] = 0;
+        }
+        else
+            AlarmMelodies[SelectedAlarm] =
+                (AlarmMelodies[SelectedAlarm] == 0U) ?
+                MUSIC_COUNT - 1U : AlarmMelodies[SelectedAlarm] - 1U;
+        return;
+    }
+
+    value = (field == FIELD_HOUR) ?
+            &AlarmHours[SelectedAlarm] : &AlarmMinutes[SelectedAlarm];
     if (increase)
     {
         if (field == FIELD_HOUR)
         {
-            if (++AlarmHours[SelectedAlarm] >= 24U)
-                AlarmHours[SelectedAlarm] = 0;
+            if (++(*value) >= 24U) *value = 0;
         }
         else
         {
-            if (++AlarmMinutes[SelectedAlarm] >= 60U)
-                AlarmMinutes[SelectedAlarm] = 0;
+            if (++(*value) >= 60U) *value = 0;
         }
     }
     else
     {
         if (field == FIELD_HOUR)
-            AlarmHours[SelectedAlarm] = (AlarmHours[SelectedAlarm] == 0U) ?
-                                        23U : AlarmHours[SelectedAlarm] - 1U;
+            *value = (*value == 0U) ? 23U : *value - 1U;
         else
-            AlarmMinutes[SelectedAlarm] = (AlarmMinutes[SelectedAlarm] == 0U) ?
-                                          59U : AlarmMinutes[SelectedAlarm] - 1U;
+            *value = (*value == 0U) ? 59U : *value - 1U;
     }
 }
 
 void Board_SetAlarm(unsigned char index, unsigned char hour,
-                    unsigned char minute)
+                    unsigned char minute, unsigned char melody)
 {
     AlarmHours[index] = hour;
     AlarmMinutes[index] = minute;
+    if (melody < MUSIC_COUNT) AlarmMelodies[index] = melody;
     SelectedAlarm = index;
 }
 
@@ -222,7 +242,10 @@ bit Board_IsAlarmTime(unsigned char hour, unsigned char minute)
     for (i = 0; i < ALARM_COUNT; i++)
     {
         if ((hour == AlarmHours[i]) && (minute == AlarmMinutes[i]))
+        {
+            SelectedAlarm = i;
             return 1;
+        }
     }
     return 0;
 }
@@ -232,6 +255,7 @@ void Board_StartAlarm(void)
     ClockTickMs = 0;
     AlarmMs = 0;
     AlarmRinging = 1;
+    Music_Start(AlarmMelodies[SelectedAlarm], 0U);
 }
 
 void Board_StartClockTick(void)
@@ -242,6 +266,7 @@ void Board_StartClockTick(void)
 void Board_StopAlarm(void)
 {
     AlarmRinging = 0;
+    Music_Stop();
     BUZZER = 1;
 }
 
@@ -289,17 +314,17 @@ void Timer0_Isr(void) interrupt 1 using 1
         }
     }
 
+    Music_Tick1ms();
     if (AlarmRinging)
     {
-        BUZZER = !BUZZER;
         if (++AlarmMs >= ALARM_RING_MS) Board_StopAlarm();
     }
-    else if (ClockTickMs != 0U)
+    else if ((!MusicPlaying) && (ClockTickMs != 0U))
     {
         BUZZER = !BUZZER;
         if (--ClockTickMs == 0U) BUZZER = 1;
     }
-    else BUZZER = 1;
+    else if (!MusicPlaying) BUZZER = 1;
 
     if (++Divider10ms >= 10U)
     {

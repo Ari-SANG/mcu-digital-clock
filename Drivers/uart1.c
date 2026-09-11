@@ -2,11 +2,12 @@
 
 #include <STC15.H>
 #include "config.h"
+#include "music.h"
 #include "uart1.h"
 
 static volatile unsigned char data RxState;
 static volatile unsigned char data RxCommand;
-static volatile unsigned char data RxData[3];
+static volatile unsigned char data RxData[4];
 static volatile unsigned char data NewHour;
 static volatile unsigned char data NewMinute;
 static volatile unsigned char data NewSecond;
@@ -14,7 +15,13 @@ static volatile bit NewTimeReady;
 static volatile unsigned char data NewAlarmIndex;
 static volatile unsigned char data NewAlarmHour;
 static volatile unsigned char data NewAlarmMinute;
+static volatile unsigned char data NewAlarmMelody;
 static volatile bit NewAlarmReady;
+
+static bit Uart1_BcdValid(unsigned char value)
+{
+    return ((value & 0x0FU) <= 9U) && ((value >> 4) <= 9U);
+}
 
 void Uart1_Init(void)
 {
@@ -32,13 +39,15 @@ void Uart1_Init(void)
 
 bit Uart1_TakeAlarm(unsigned char data *index,
                     unsigned char data *hour,
-                    unsigned char data *minute)
+                    unsigned char data *minute,
+                    unsigned char data *melody)
 {
     if (!NewAlarmReady) return 0;
     EA = 0;
     *index = NewAlarmIndex;
     *hour = NewAlarmHour;
     *minute = NewAlarmMinute;
+    *melody = NewAlarmMelody;
     NewAlarmReady = 0;
     EA = 1;
     return 1;
@@ -71,13 +80,13 @@ void Uart1_Isr(void) interrupt 4 using 2
         value = SBUF;
         if (RxState == 0U)
         {
-            if ((value == 0x01U) || (value == 0x02U))
+            if ((value >= 0x01U) && (value <= 0x03U))
             {
                 RxCommand = value;
                 RxState = 1U;
             }
         }
-        else if (RxState <= 3U)
+        else if (RxState <= ((RxCommand == 0x03U) ? 4U : 3U))
         {
             RxData[RxState - 1U] = value;
             RxState++;
@@ -85,7 +94,10 @@ void Uart1_Isr(void) interrupt 4 using 2
         else
         {
             RxState = 0;
-            if ((value == 0xAAU) && (RxCommand == 0x01U))
+            if ((value == 0xAAU) && (RxCommand == 0x01U) &&
+                Uart1_BcdValid(RxData[0]) &&
+                Uart1_BcdValid(RxData[1]) &&
+                Uart1_BcdValid(RxData[2]))
             {
                 hour = (RxData[0] >> 4) * 10U + (RxData[0] & 0x0FU);
                 minute = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
@@ -100,7 +112,9 @@ void Uart1_Isr(void) interrupt 4 using 2
                 }
             }
             else if ((value == 0xAAU) && (RxCommand == 0x02U) &&
-                     (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT))
+                     (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
+                     Uart1_BcdValid(RxData[1]) &&
+                     Uart1_BcdValid(RxData[2]))
             {
                 hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
                 minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
@@ -109,6 +123,25 @@ void Uart1_Isr(void) interrupt 4 using 2
                     NewAlarmIndex = RxData[0] - 1U;
                     NewAlarmHour = hour;
                     NewAlarmMinute = minute;
+                    NewAlarmMelody = 0xFFU;
+                    NewAlarmReady = 1;
+                    SBUF = 0x06U;
+                }
+            }
+            else if ((value == 0xAAU) && (RxCommand == 0x03U) &&
+                     (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
+                     (RxData[3] >= 1U) && (RxData[3] <= MUSIC_COUNT) &&
+                     Uart1_BcdValid(RxData[1]) &&
+                     Uart1_BcdValid(RxData[2]))
+            {
+                hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
+                minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
+                if ((hour < 24U) && (minute < 60U))
+                {
+                    NewAlarmIndex = RxData[0] - 1U;
+                    NewAlarmHour = hour;
+                    NewAlarmMinute = minute;
+                    NewAlarmMelody = RxData[3] - 1U;
                     NewAlarmReady = 1;
                     SBUF = 0x06U;
                 }

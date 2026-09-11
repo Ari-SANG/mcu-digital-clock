@@ -26,8 +26,10 @@ is fitted between P4.5 and VCCD; the other H2 position connects VCCD directly to
 - `Application/app.c`: four display states and the complete edit workflow.
 - `Drivers/board.c`: GPIO, display scan, clock timebase, alarm, buzzer and
   P1.0/ADC0 temperature measurement.
+- `Drivers/music.c`: Timer1 tone generation, three built-in melodies and
+  alarm/preview sequencing.
 - `Drivers/keys.c`: key debounce and long-press repeat.
-- `Drivers/uart1.c`: UART1 initialization and time-frame parser.
+- `Drivers/uart1.c`: UART1 initialization and time/alarm-frame parser.
 - `chuankou/`: C# WinForms serial tool, source code and compiled EXE.
 
 The Keil project shows the same layout as the `Application`, `Drivers` and
@@ -50,7 +52,10 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
 - Hold P1.4 or P1.5 for 600 ms to start automatic repeat (every 120 ms).
 - P1.3 while editing: confirm the field and move to the next one. Clock editing
   follows hour -> minute -> second -> finish; alarm editing follows hour ->
-  minute -> finish.
+  minute -> music -> finish.
+- The alarm music field is shown as `A1-2`, meaning alarm 1 uses music 2.
+  P1.4/P1.5 selects the previous/next melody and restarts a three-second
+  preview; P1.3 stops the preview and completes editing.
 - Any button stops a ringing alarm.
 
 The display scan and clock timebase run in the 1 ms Timer0 interrupt, so button
@@ -73,6 +78,8 @@ decimal point is illuminated after the second digit.
 - Alarm frame: `02 NN HH MM AA`. `NN` is the binary alarm number 01-03;
   `HH` and `MM` are packed BCD. A valid frame updates that alarm, selects its
   display and is acknowledged with byte `06`.
+- Extended alarm frame: `03 NN HH MM MU AA`. `MU` is the binary melody number
+  01-03. It updates the alarm time and melody in one acknowledged operation.
 
 Example: set the clock to 19:35:50 by sending these hexadecimal bytes:
 
@@ -87,15 +94,18 @@ ignored. The supplied PC tool always generates valid packed-BCD fields.
 
 Run `chuankou\bin\SerialTimeSync.exe`, select the CH340 COM port and connect.
 The `时间同步` page can send the current PC clock or a manually entered time.
-The separate `闹钟设置` page can update any of the three alarms. The connection
-stays open, DTR/RTS remain disabled, and the interface reports success only after
-receiving the MCU's `06` ACK.
+The separate `闹钟设置` page can update the time and melody of any alarm. The
+connection stays open, DTR/RTS remain disabled, and the interface reports
+success only after receiving the MCU's `06` ACK.
 
 ## Default values
 
 - Startup clock: 12:00:00.
 - Three alarms: 08:00, 12:00 and 16:00. All three are active, and each can be
   selected and edited independently.
-- Alarm duration: 30 seconds, using a 500 Hz passive-buzzer waveform.
+- Alarm 1 defaults to `Twinkle Twinkle Little Star`, alarm 2 to `Ode to Joy`,
+  and alarm 3 to `Happy Birthday`. The selected melody repeats for up to 30
+  seconds; any button stops it.
+- Alarm duration: up to 30 seconds, looping the selected passive-buzzer melody.
 - Clock tick: a 40 ms, 500 Hz tone on each second while the clock display is
   selected. The alarm has priority over this short tone.

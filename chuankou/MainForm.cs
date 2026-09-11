@@ -14,6 +14,10 @@ namespace SerialTimeSync
         private const byte FrameHead = 0x01;
         private const byte FrameTail = 0xAA;
         private const byte Ack = 0x06;
+        private static readonly string[] MelodyNames =
+        {
+            "音乐1 · 小星星", "音乐2 · 欢乐颂", "音乐3 · 生日快乐"
+        };
 
         private readonly ComboBox portCombo = new ComboBox();
         private readonly Button refreshButton = new Button();
@@ -34,6 +38,10 @@ namespace SerialTimeSync
         private readonly NumericUpDown[] alarmMinuteInputs =
         {
             new NumericUpDown(), new NumericUpDown(), new NumericUpDown()
+        };
+        private readonly ComboBox[] alarmMusicCombos =
+        {
+            new ComboBox(), new ComboBox(), new ComboBox()
         };
         private readonly Button[] alarmSyncButtons =
         {
@@ -148,7 +156,7 @@ namespace SerialTimeSync
             manualGroup.Controls.Add(manualSyncButton);
 
             Label alarmHelp = AddLabel(alarmPage,
-                "分别设置三组闹钟；发送成功后，单片机会切换到对应闹钟显示。",
+                "分别设置三组闹钟的时间与音乐；串口写入不会自动试听。",
                 14, 12, 590);
             alarmHelp.ForeColor = Color.DimGray;
 
@@ -190,33 +198,41 @@ namespace SerialTimeSync
         private void BuildAlarmRow(Control parent, int index, int y,
             int defaultHour, int defaultMinute)
         {
-            AddLabel(parent, "闹钟 " + (index + 1), 18, y + 3, 72);
+            AddLabel(parent, "闹钟 " + (index + 1), 18, y + 3, 62);
 
             NumericUpDown hour = alarmHourInputs[index];
             hour.Minimum = 0;
             hour.Maximum = 23;
             hour.Value = defaultHour;
-            hour.Location = new Point(100, y);
-            hour.Size = new Size(65, 30);
+            hour.Location = new Point(82, y);
+            hour.Size = new Size(55, 30);
             hour.TextAlign = HorizontalAlignment.Center;
             parent.Controls.Add(hour);
-            AddLabel(parent, "时", 170, y + 3, 30);
+            AddLabel(parent, "时", 140, y + 3, 25);
 
             NumericUpDown minute = alarmMinuteInputs[index];
             minute.Minimum = 0;
             minute.Maximum = 59;
             minute.Value = defaultMinute;
-            minute.Location = new Point(205, y);
-            minute.Size = new Size(65, 30);
+            minute.Location = new Point(165, y);
+            minute.Size = new Size(55, 30);
             minute.TextAlign = HorizontalAlignment.Center;
             parent.Controls.Add(minute);
-            AddLabel(parent, "分", 275, y + 3, 30);
+            AddLabel(parent, "分", 223, y + 3, 25);
+
+            ComboBox music = alarmMusicCombos[index];
+            music.DropDownStyle = ComboBoxStyle.DropDownList;
+            music.Items.AddRange(MelodyNames);
+            music.SelectedIndex = index;
+            music.Location = new Point(255, y);
+            music.Size = new Size(160, 30);
+            parent.Controls.Add(music);
 
             Button button = alarmSyncButtons[index];
             button.Text = "写入闹钟 " + (index + 1);
             button.Tag = index;
-            button.Location = new Point(405, y - 2);
-            button.Size = new Size(170, 34);
+            button.Location = new Point(430, y - 2);
+            button.Size = new Size(150, 34);
             button.Click += AlarmSyncButtonClick;
             parent.Controls.Add(button);
         }
@@ -332,9 +348,10 @@ namespace SerialTimeSync
             int index = (int)button.Tag;
             int hour = (int)alarmHourInputs[index].Value;
             int minute = (int)alarmMinuteInputs[index].Value;
-            byte[] frame = BuildAlarmFrame(index, hour, minute);
-            string value = String.Format("闹钟 {0} = {1:00}:{2:00}",
-                index + 1, hour, minute);
+            int melody = alarmMusicCombos[index].SelectedIndex;
+            byte[] frame = BuildAlarmFrame(index, hour, minute, melody);
+            string value = String.Format("闹钟 {0} = {1:00}:{2:00}，{3}",
+                index + 1, hour, minute, MelodyNames[melody]);
             await SendFrameAsync(frame, "修改闹钟", value);
         }
 
@@ -419,11 +436,13 @@ namespace SerialTimeSync
             };
         }
 
-        private static byte[] BuildAlarmFrame(int index, int hour, int minute)
+        private static byte[] BuildAlarmFrame(int index, int hour, int minute,
+            int melody)
         {
             return new byte[]
             {
-                0x02, (byte)(index + 1), ToBcd(hour), ToBcd(minute), FrameTail
+                0x03, (byte)(index + 1), ToBcd(hour), ToBcd(minute),
+                (byte)(melody + 1), FrameTail
             };
         }
 

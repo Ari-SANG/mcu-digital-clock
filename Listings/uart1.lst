@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:39:24 PAGE 1   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 11:37:35 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE UART1
@@ -12,133 +12,166 @@ line level    source
    2          
    3          #include <STC15.H>
    4          #include "config.h"
-   5          #include "uart1.h"
-   6          
-   7          static volatile unsigned char data RxState;
-   8          static volatile unsigned char data RxCommand;
-   9          static volatile unsigned char data RxData[3];
-  10          static volatile unsigned char data NewHour;
-  11          static volatile unsigned char data NewMinute;
-  12          static volatile unsigned char data NewSecond;
-  13          static volatile bit NewTimeReady;
-  14          static volatile unsigned char data NewAlarmIndex;
-  15          static volatile unsigned char data NewAlarmHour;
-  16          static volatile unsigned char data NewAlarmMinute;
-  17          static volatile bit NewAlarmReady;
-  18          
-  19          void Uart1_Init(void)
-  20          {
-  21   1          RxState = 0;
-  22   1          NewTimeReady = 0;
-  23   1          NewAlarmReady = 0;
-  24   1          SCON = 0x50;
-  25   1          AUXR |= 0x01;
-  26   1          AUXR |= 0x04;
-  27   1          T2L = (65536UL - FOSC / 4UL / UART1_BAUD);
-  28   1          T2H = (65536UL - FOSC / 4UL / UART1_BAUD) >> 8;
-  29   1          AUXR |= 0x10;
-  30   1          ES = 1;
-  31   1      }
-  32          
-  33          bit Uart1_TakeAlarm(unsigned char data *index,
-  34                              unsigned char data *hour,
-  35                              unsigned char data *minute)
-  36          {
-  37   1          if (!NewAlarmReady) return 0;
-  38   1          EA = 0;
-  39   1          *index = NewAlarmIndex;
-  40   1          *hour = NewAlarmHour;
-  41   1          *minute = NewAlarmMinute;
-  42   1          NewAlarmReady = 0;
-  43   1          EA = 1;
-  44   1          return 1;
-  45   1      }
-  46          
-  47          bit Uart1_TakeTime(unsigned char data *hour,
-  48                             unsigned char data *minute,
-  49                             unsigned char data *second)
-  50          {
-  51   1          if (!NewTimeReady) return 0;
-  52   1          EA = 0;
-  53   1          *hour = NewHour;
-  54   1          *minute = NewMinute;
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:39:24 PAGE 2   
+   5          #include "music.h"
+   6          #include "uart1.h"
+   7          
+   8          static volatile unsigned char data RxState;
+   9          static volatile unsigned char data RxCommand;
+  10          static volatile unsigned char data RxData[4];
+  11          static volatile unsigned char data NewHour;
+  12          static volatile unsigned char data NewMinute;
+  13          static volatile unsigned char data NewSecond;
+  14          static volatile bit NewTimeReady;
+  15          static volatile unsigned char data NewAlarmIndex;
+  16          static volatile unsigned char data NewAlarmHour;
+  17          static volatile unsigned char data NewAlarmMinute;
+  18          static volatile unsigned char data NewAlarmMelody;
+  19          static volatile bit NewAlarmReady;
+  20          
+  21          static bit Uart1_BcdValid(unsigned char value)
+  22          {
+  23   1          return ((value & 0x0FU) <= 9U) && ((value >> 4) <= 9U);
+  24   1      }
+  25          
+  26          void Uart1_Init(void)
+  27          {
+  28   1          RxState = 0;
+  29   1          NewTimeReady = 0;
+  30   1          NewAlarmReady = 0;
+  31   1          SCON = 0x50;
+  32   1          AUXR |= 0x01;
+  33   1          AUXR |= 0x04;
+  34   1          T2L = (65536UL - FOSC / 4UL / UART1_BAUD);
+  35   1          T2H = (65536UL - FOSC / 4UL / UART1_BAUD) >> 8;
+  36   1          AUXR |= 0x10;
+  37   1          ES = 1;
+  38   1      }
+  39          
+  40          bit Uart1_TakeAlarm(unsigned char data *index,
+  41                              unsigned char data *hour,
+  42                              unsigned char data *minute,
+  43                              unsigned char data *melody)
+  44          {
+  45   1          if (!NewAlarmReady) return 0;
+  46   1          EA = 0;
+  47   1          *index = NewAlarmIndex;
+  48   1          *hour = NewAlarmHour;
+  49   1          *minute = NewAlarmMinute;
+  50   1          *melody = NewAlarmMelody;
+  51   1          NewAlarmReady = 0;
+  52   1          EA = 1;
+  53   1          return 1;
+  54   1      }
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 11:37:35 PAGE 2   
 
-  55   1          *second = NewSecond;
-  56   1          NewTimeReady = 0;
-  57   1          EA = 1;
-  58   1          return 1;
-  59   1      }
-  60          
-  61          void Uart1_Isr(void) interrupt 4 using 2
-  62          {
-  63   1          unsigned char value;
-  64   1          unsigned char hour;
-  65   1          unsigned char minute;
-  66   1          unsigned char second;
-  67   1      
-  68   1          if (RI)
-  69   1          {
-  70   2              RI = 0;
-  71   2              value = SBUF;
-  72   2              if (RxState == 0U)
-  73   2              {
-  74   3                  if ((value == 0x01U) || (value == 0x02U))
-  75   3                  {
-  76   4                      RxCommand = value;
-  77   4                      RxState = 1U;
-  78   4                  }
-  79   3              }
-  80   2              else if (RxState <= 3U)
-  81   2              {
-  82   3                  RxData[RxState - 1U] = value;
-  83   3                  RxState++;
-  84   3              }
-  85   2              else
-  86   2              {
-  87   3                  RxState = 0;
-  88   3                  if ((value == 0xAAU) && (RxCommand == 0x01U))
-  89   3                  {
-  90   4                      hour = (RxData[0] >> 4) * 10U + (RxData[0] & 0x0FU);
-  91   4                      minute = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
-  92   4                      second = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
-  93   4                      if ((hour < 24U) && (minute < 60U) && (second < 60U))
-  94   4                      {
-  95   5                          NewHour = hour;
-  96   5                          NewMinute = minute;
-  97   5                          NewSecond = second;
-  98   5                          NewTimeReady = 1;
-  99   5                          SBUF = 0x06U;
- 100   5                      }
- 101   4                  }
- 102   3                  else if ((value == 0xAAU) && (RxCommand == 0x02U) &&
- 103   3                           (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT))
- 104   3                  {
- 105   4                      hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
- 106   4                      minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
- 107   4                      if ((hour < 24U) && (minute < 60U))
- 108   4                      {
- 109   5                          NewAlarmIndex = RxData[0] - 1U;
- 110   5                          NewAlarmHour = hour;
- 111   5                          NewAlarmMinute = minute;
- 112   5                          NewAlarmReady = 1;
- 113   5                          SBUF = 0x06U;
- 114   5                      }
- 115   4                  }
- 116   3              }
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 10:39:24 PAGE 3   
+  55          
+  56          bit Uart1_TakeTime(unsigned char data *hour,
+  57                             unsigned char data *minute,
+  58                             unsigned char data *second)
+  59          {
+  60   1          if (!NewTimeReady) return 0;
+  61   1          EA = 0;
+  62   1          *hour = NewHour;
+  63   1          *minute = NewMinute;
+  64   1          *second = NewSecond;
+  65   1          NewTimeReady = 0;
+  66   1          EA = 1;
+  67   1          return 1;
+  68   1      }
+  69          
+  70          void Uart1_Isr(void) interrupt 4 using 2
+  71          {
+  72   1          unsigned char value;
+  73   1          unsigned char hour;
+  74   1          unsigned char minute;
+  75   1          unsigned char second;
+  76   1      
+  77   1          if (RI)
+  78   1          {
+  79   2              RI = 0;
+  80   2              value = SBUF;
+  81   2              if (RxState == 0U)
+  82   2              {
+  83   3                  if ((value >= 0x01U) && (value <= 0x03U))
+  84   3                  {
+  85   4                      RxCommand = value;
+  86   4                      RxState = 1U;
+  87   4                  }
+  88   3              }
+  89   2              else if (RxState <= ((RxCommand == 0x03U) ? 4U : 3U))
+  90   2              {
+  91   3                  RxData[RxState - 1U] = value;
+  92   3                  RxState++;
+  93   3              }
+  94   2              else
+  95   2              {
+  96   3                  RxState = 0;
+  97   3                  if ((value == 0xAAU) && (RxCommand == 0x01U) &&
+  98   3                      Uart1_BcdValid(RxData[0]) &&
+  99   3                      Uart1_BcdValid(RxData[1]) &&
+ 100   3                      Uart1_BcdValid(RxData[2]))
+ 101   3                  {
+ 102   4                      hour = (RxData[0] >> 4) * 10U + (RxData[0] & 0x0FU);
+ 103   4                      minute = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
+ 104   4                      second = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
+ 105   4                      if ((hour < 24U) && (minute < 60U) && (second < 60U))
+ 106   4                      {
+ 107   5                          NewHour = hour;
+ 108   5                          NewMinute = minute;
+ 109   5                          NewSecond = second;
+ 110   5                          NewTimeReady = 1;
+ 111   5                          SBUF = 0x06U;
+ 112   5                      }
+ 113   4                  }
+ 114   3                  else if ((value == 0xAAU) && (RxCommand == 0x02U) &&
+ 115   3                           (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
+ 116   3                           Uart1_BcdValid(RxData[1]) &&
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 11:37:35 PAGE 3   
 
- 117   2          }
- 118   1          if (TI) TI = 0;
- 119   1      }
+ 117   3                           Uart1_BcdValid(RxData[2]))
+ 118   3                  {
+ 119   4                      hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
+ 120   4                      minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
+ 121   4                      if ((hour < 24U) && (minute < 60U))
+ 122   4                      {
+ 123   5                          NewAlarmIndex = RxData[0] - 1U;
+ 124   5                          NewAlarmHour = hour;
+ 125   5                          NewAlarmMinute = minute;
+ 126   5                          NewAlarmMelody = 0xFFU;
+ 127   5                          NewAlarmReady = 1;
+ 128   5                          SBUF = 0x06U;
+ 129   5                      }
+ 130   4                  }
+ 131   3                  else if ((value == 0xAAU) && (RxCommand == 0x03U) &&
+ 132   3                           (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
+ 133   3                           (RxData[3] >= 1U) && (RxData[3] <= MUSIC_COUNT) &&
+ 134   3                           Uart1_BcdValid(RxData[1]) &&
+ 135   3                           Uart1_BcdValid(RxData[2]))
+ 136   3                  {
+ 137   4                      hour = (RxData[1] >> 4) * 10U + (RxData[1] & 0x0FU);
+ 138   4                      minute = (RxData[2] >> 4) * 10U + (RxData[2] & 0x0FU);
+ 139   4                      if ((hour < 24U) && (minute < 60U))
+ 140   4                      {
+ 141   5                          NewAlarmIndex = RxData[0] - 1U;
+ 142   5                          NewAlarmHour = hour;
+ 143   5                          NewAlarmMinute = minute;
+ 144   5                          NewAlarmMelody = RxData[3] - 1U;
+ 145   5                          NewAlarmReady = 1;
+ 146   5                          SBUF = 0x06U;
+ 147   5                      }
+ 148   4                  }
+ 149   3              }
+ 150   2          }
+ 151   1          if (TI) TI = 0;
+ 152   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    313    ----
+   CODE SIZE        =    487    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =     11    ----
+   DATA SIZE        =     13       4
    IDATA SIZE       =   ----    ----
    BIT SIZE         =      2    ----
 END OF MODULE INFORMATION.

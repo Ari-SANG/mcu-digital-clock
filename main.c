@@ -4,12 +4,14 @@
 #include "app.h"
 #include "board.h"
 #include "keys.h"
+#include "music.h"
 #include "uart1.h"
 
 void main(void)
 {
     EA = 0;
     Board_Init();
+    Music_Init();
     Keys_Init();
     Uart1_Init();
     EA = 1;

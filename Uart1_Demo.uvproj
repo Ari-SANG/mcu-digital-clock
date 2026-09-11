@@ -406,6 +406,11 @@
               <FileType>1</FileType>
               <FilePath>.\Drivers\uart1.c</FilePath>
             </File>
+            <File>
+              <FileName>music.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\music.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -435,6 +440,11 @@
               <FileName>uart1.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Drivers\uart1.h</FilePath>
+            </File>
+            <File>
+              <FileName>music.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Drivers\music.h</FilePath>
             </File>
           </Files>
         </Group>

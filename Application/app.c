@@ -1,10 +1,11 @@
 /* Display states, edit workflow, student ID scrolling and alarm decisions. */
-//三种显示状态、学号滚动和修改流程
+//四种显示状态、学号滚动、闹钟音乐和修改流程
 
 #include "app.h"
 #include "board.h"
 #include "config.h"
 #include "keys.h"
+#include "music.h"
 #include "uart1.h"
 
 #define STATE_CLOCK      0U
@@ -44,10 +45,12 @@ void App_Service(void)
     unsigned char data minute;
     unsigned char data second;
     unsigned char data alarm_index;
+    unsigned char data alarm_melody;
     unsigned char data second_event;
 
     if (Uart1_TakeTime(&hour, &minute, &second))
     {
+        if (!AlarmRinging) Music_Stop();
         Board_SetTime(hour, minute, second);
         DisplayState = STATE_CLOCK;
         EditItem = FIELD_NONE;
@@ -55,9 +58,10 @@ void App_Service(void)
         App_Render();
     }
 
-    if (Uart1_TakeAlarm(&alarm_index, &hour, &minute))
+    if (Uart1_TakeAlarm(&alarm_index, &hour, &minute, &alarm_melody))
     {
-        Board_SetAlarm(alarm_index, hour, minute);
+        if (!AlarmRinging) Music_Stop();
+        Board_SetAlarm(alarm_index, hour, minute, alarm_melody);
         DisplayState = STATE_ALARM;
         EditItem = FIELD_NONE;
         UiTicks = 0;
@@ -116,10 +120,17 @@ static void App_HandleKeys(unsigned char events)
         {
             if ((DisplayState == STATE_CLOCK) && (EditItem < FIELD_SECOND))
                 EditItem++;
-            else if ((DisplayState == STATE_ALARM) && (EditItem < FIELD_MINUTE))
+            else if ((DisplayState == STATE_ALARM) && (EditItem < FIELD_MUSIC))
+            {
                 EditItem++;
+                if (EditItem == FIELD_MUSIC)
+                    Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
+            }
             else
+            {
                 EditItem = FIELD_NONE;
+                Music_Stop();
+            }
         }
         else
         {
@@ -139,7 +150,11 @@ static void App_HandleKeys(unsigned char events)
             if (DisplayState == STATE_CLOCK)
                 Board_AdjustClock(EditItem, 0U);
             else
+            {
                 Board_AdjustAlarm(EditItem, 0U);
+                if (EditItem == FIELD_MUSIC)
+                    Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
+            }
         }
     }
 
@@ -163,7 +178,11 @@ static void App_HandleKeys(unsigned char events)
         if (DisplayState == STATE_CLOCK)
             Board_AdjustClock(EditItem, 1U);
         else
+        {
             Board_AdjustAlarm(EditItem, 1U);
+            if (EditItem == FIELD_MUSIC)
+                Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
+        }
     }
 }
 
@@ -212,12 +231,24 @@ static void App_Render(void)
     }
     else if (DisplayState == STATE_ALARM)
     {
-        alarm_hour = AlarmHours[SelectedAlarm];
-        alarm_minute = AlarmMinutes[SelectedAlarm];
-        d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
-        d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
-        if (EditItem == FIELD_HOUR) blink = 0x03;
-        else if (EditItem == FIELD_MINUTE) blink = 0x0C;
+        if (EditItem == FIELD_MUSIC)
+        {
+            d0 = DISPLAY_A;
+            d1 = SelectedAlarm + 1U;
+            d2 = DISPLAY_DASH;
+            d3 = AlarmMelodies[SelectedAlarm] + 1U;
+            blink = 0x08;
+            colon = COLON_OFF;
+        }
+        else
+        {
+            alarm_hour = AlarmHours[SelectedAlarm];
+            alarm_minute = AlarmMinutes[SelectedAlarm];
+            d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
+            d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
+            if (EditItem == FIELD_HOUR) blink = 0x03;
+            else if (EditItem == FIELD_MINUTE) blink = 0x0C;
+        }
     }
     else
     {

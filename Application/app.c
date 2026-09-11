@@ -1,5 +1,5 @@
-/* Display states, edit workflow, student ID scrolling and alarm decisions. */
-//四种显示状态、学号滚动、闹钟音乐和修改流程
+/* Display states, automatic clock/temperature view, editing and alarms. */
+//显示状态、时钟温度自动切换、学号滚动、闹钟音乐和修改流程
 
 #include "app.h"
 #include "board.h"
@@ -12,7 +12,6 @@
 #define STATE_CLOCK      0U
 #define STATE_STUDENT    1U
 #define STATE_ALARM      2U
-#define STATE_TEMPERATURE 3U
 
 unsigned char code StudentId[] = STUDENT_ID_TEXT;
 #define STUDENT_ID_LEN ((unsigned char)(sizeof(StudentId) - 1U))
@@ -24,7 +23,9 @@ static unsigned char data EditItem;
 static unsigned char data ClockPage;
 static unsigned char data StudentPos;
 static bit ClockTickEnabled;
+static bit TemperaturePage;
 static unsigned int data UiTicks;
+static unsigned int data ClockTemperatureTicks;
 
 static void App_Render(void);
 static void App_HandleKeys(unsigned char events);
@@ -36,7 +37,9 @@ void App_Init(void)
     ClockPage = 0;
     StudentPos = 0;
     ClockTickEnabled = CLOCK_TICK_DEFAULT_ON;
+    TemperaturePage = 0;
     UiTicks = 0;
+    ClockTemperatureTicks = 0;
     App_Render();
 }
 
@@ -56,7 +59,10 @@ void App_Service(void)
         Settings_RequestSave();
         DisplayState = STATE_CLOCK;
         EditItem = FIELD_NONE;
+        ClockPage = 0;
+        TemperaturePage = 0;
         UiTicks = 0;
+        ClockTemperatureTicks = 0;
         App_Render();
     }
 
@@ -67,7 +73,10 @@ void App_Service(void)
         Settings_RequestSave();
         DisplayState = STATE_ALARM;
         EditItem = FIELD_NONE;
+        ClockPage = 0;
+        TemperaturePage = 0;
         UiTicks = 0;
+        ClockTemperatureTicks = 0;
         App_Render();
     }
 
@@ -89,6 +98,22 @@ void App_Tick10ms(unsigned char key_events)
         App_HandleKeys(key_events);
 
     UiTicks++;
+    if ((DisplayState == STATE_CLOCK) && (EditItem == FIELD_NONE))
+    {
+        if (++ClockTemperatureTicks >= CLOCK_TEMPERATURE_TICKS)
+        {
+            ClockTemperatureTicks = 0;
+            TemperaturePage = !TemperaturePage;
+            ClockPage = 0;
+            UiTicks = 0;
+        }
+    }
+    else
+    {
+        ClockTemperatureTicks = 0;
+        TemperaturePage = 0;
+    }
+
     if ((DisplayState == STATE_STUDENT) &&
         ((StudentPos & STUDENT_FIXED_FLAG) == 0U) &&
         (UiTicks >= STUDENT_SCROLL_TICKS))
@@ -98,6 +123,7 @@ void App_Tick10ms(unsigned char key_events)
     }
     else if ((DisplayState == STATE_CLOCK) &&
              (EditItem == FIELD_NONE) &&
+             !TemperaturePage &&
              (UiTicks >= CLOCK_PAGE_TICKS))
     {
         UiTicks = 0;
@@ -116,6 +142,12 @@ static void App_HandleKeys(unsigned char events)
     }
 
     UiTicks = 0;
+    if (DisplayState == STATE_CLOCK)
+    {
+        ClockTemperatureTicks = 0;
+        TemperaturePage = 0;
+        ClockPage = 0;
+    }
 
     if (events & KEY_EVENT_MODE)
     {
@@ -138,8 +170,14 @@ static void App_HandleKeys(unsigned char events)
         }
         else
         {
-            if (++DisplayState > STATE_TEMPERATURE) DisplayState = STATE_CLOCK;
+            if (++DisplayState > STATE_ALARM) DisplayState = STATE_CLOCK;
             if (DisplayState == STATE_STUDENT) StudentPos = 0;
+            if (DisplayState == STATE_CLOCK)
+            {
+                ClockTemperatureTicks = 0;
+                TemperaturePage = 0;
+                ClockPage = 0;
+            }
         }
         return;
     }
@@ -218,8 +256,17 @@ static void App_Render(void)
     }
     else if (DisplayState == STATE_CLOCK)
     {
-        if ((EditItem != FIELD_SECOND) &&
-            ((EditItem != FIELD_NONE) || (ClockPage == 0U)))
+        if (TemperaturePage && (EditItem == FIELD_NONE))
+        {
+            temperature = Board_ReadTemperature(&temperature_decimal);
+            d0 = temperature / 10U;
+            d1 = temperature % 10U;
+            d2 = temperature_decimal;
+            d3 = DISPLAY_C;
+            colon = COLON_DECIMAL;
+        }
+        else if ((EditItem != FIELD_SECOND) &&
+                 ((EditItem != FIELD_NONE) || (ClockPage == 0U)))
         {
             d0 = ClockHour / 10U; d1 = ClockHour % 10U;
             d2 = ClockMinute / 10U; d3 = ClockMinute % 10U;
@@ -229,9 +276,12 @@ static void App_Render(void)
             d0 = ClockMinute / 10U; d1 = ClockMinute % 10U;
             d2 = ClockSecond / 10U; d3 = ClockSecond % 10U;
         }
-        colon = (EditItem == FIELD_NONE) ? COLON_BLINK : COLON_ON;
-        if (EditItem == FIELD_HOUR) blink = 0x03;
-        else if (EditItem != FIELD_NONE) blink = 0x0C;
+        if (!TemperaturePage || (EditItem != FIELD_NONE))
+        {
+            colon = (EditItem == FIELD_NONE) ? COLON_BLINK : COLON_ON;
+            if (EditItem == FIELD_HOUR) blink = 0x03;
+            else if (EditItem != FIELD_NONE) blink = 0x0C;
+        }
     }
     else if (DisplayState == STATE_ALARM)
     {
@@ -254,15 +304,5 @@ static void App_Render(void)
             else if (EditItem == FIELD_MINUTE) blink = 0x0C;
         }
     }
-    else
-    {
-        temperature = Board_ReadTemperature(&temperature_decimal);
-        d0 = temperature / 10U;
-        d1 = temperature % 10U;
-        d2 = temperature_decimal;
-        d3 = DISPLAY_C;
-        colon = COLON_DECIMAL;
-    }
-
     Board_SetDisplay(d0, d1, d2, d3, blink, colon);
 }

@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:35:34 PAGE 1   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:44:23 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE BOARD
@@ -62,7 +62,7 @@ line level    source
   52   1          VCCD_ENABLE = 1;
   53   1          BUZZER = 1;
   54   1      
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:35:34 PAGE 2   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:44:23 PAGE 2   
 
   55   1          P2M1 = 0x00;
   56   1          P2M0 = 0xFF;
@@ -126,7 +126,7 @@ line level    source
  114   1          if (!SecondEvent) return 0;
  115   1          SecondEvent = 0;
  116   1          return 1;
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:35:34 PAGE 3   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:44:23 PAGE 3   
 
  117   1      }
  118          
@@ -190,7 +190,7 @@ line level    source
  176   2          }
  177   1          ClockMillisecond = 0;
  178   1          EA = 1;
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:35:34 PAGE 4   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:44:23 PAGE 4   
 
  179   1      }
  180          
@@ -254,7 +254,7 @@ line level    source
  238   1          unsigned char data i;
  239   1      
  240   1          for (i = 0; i < ALARM_COUNT; i++)
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:35:34 PAGE 5   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:44:23 PAGE 5   
 
  241   1          {
  242   2              if ((hour == AlarmHours[i]) && (minute == AlarmMinutes[i]))
@@ -318,7 +318,7 @@ line level    source
  300   2              ClockMillisecond = 0;
  301   2              SecondEvent = 1;
  302   2              if (++ClockSecond >= 60U)
-C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:35:34 PAGE 6   
+C51 COMPILER V9.60.7.0   BOARD                                                             09/11/2026 16:44:23 PAGE 6   
 
  303   2              {
  304   3                  ClockSecond = 0;

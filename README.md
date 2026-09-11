@@ -23,7 +23,8 @@ is fitted between P4.5 and VCCD; the other H2 position connects VCCD directly to
 
 - `main.c`: initialization and foreground scheduling only.
 - `config.h`: student ID, startup time, alarm defaults and timing constants.
-- `Application/app.c`: four display states and the complete edit workflow.
+- `Application/app.c`: three selectable states, automatic clock/temperature
+  switching and the complete edit workflow.
 - `Drivers/board.c`: GPIO, Timer1 display scan, clock timebase, alarm and
   P1.0/ADC0 temperature measurement.
 - `Drivers/music.c`: Timer0 hardware tone output, three built-in melodies,
@@ -41,8 +42,11 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
 
 - After power-on the clock display is selected. Because the board has four
   digits, it alternates every three seconds between HH:MM and MM:SS.
-- P1.3 in normal display mode: clock -> student ID -> alarm -> room
-  temperature -> clock.
+- In the clock display, ten seconds without a button operation switches from
+  time to room temperature, and another idle ten seconds switches back. Any
+  button returns to the time view and restarts the ten-second interval.
+- P1.3 in normal display mode: clock/temperature -> student ID -> alarm ->
+  clock/temperature.
 - P1.4 in clock/alarm mode: enter editing at the hour field.
 - P1.4 while editing: decrement the flashing field.
 - P1.5 while editing: increment the flashing field.
@@ -66,10 +70,11 @@ interrupt latency and button handling does not block the display.
 
 ## Room temperature
 
-The fourth display state reads the board's 10 kOhm, B=3950 NTC divider through
-P1.0/ADC0. The 10-bit ADC result is converted to tenths of a degree Celsius for
-normal indoor temperatures. For example, `261C` means 26.1 degrees Celsius; the
-decimal point is illuminated after the second digit.
+The automatic temperature view in the clock state reads the board's 10 kOhm,
+B=3950 NTC divider through P1.0/ADC0. The 10-bit ADC result is converted to
+tenths of a degree Celsius for normal indoor temperatures. For example, `261C`
+means 26.1 degrees Celsius; the decimal point is illuminated after the second
+digit.
 
 ## UART1 time synchronization
 

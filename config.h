@@ -24,6 +24,7 @@
 /* UI timings are counted in 10 ms scheduler ticks. */
 #define STUDENT_SCROLL_TICKS    70U
 #define CLOCK_PAGE_TICKS        300U
+#define CLOCK_TEMPERATURE_TICKS 1000U
 #define KEY_DEBOUNCE_TICKS      3U
 #define KEY_REPEAT_START_TICKS  60U
 #define KEY_REPEAT_STEP_TICKS   12U

@@ -183,6 +183,15 @@ void Board_AdjustAlarm(unsigned char field, unsigned char increase)
     }
 }
 
+void Board_SetAlarm(unsigned char index, unsigned char hour,
+                    unsigned char minute)
+{
+    if (index >= ALARM_COUNT) return;
+    AlarmHours[index] = hour;
+    AlarmMinutes[index] = minute;
+    SelectedAlarm = index;
+}
+
 void Board_SelectNextAlarm(void)
 {
     if (++SelectedAlarm >= ALARM_COUNT)

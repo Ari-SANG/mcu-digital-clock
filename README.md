@@ -60,6 +60,9 @@ handling does not stop or visibly block the display.
 - Binary frame: `01 HH MM SS AA`.
 - `HH`, `MM` and `SS` are packed BCD bytes.
 - A valid frame is acknowledged with byte `06`.
+- Alarm frame: `02 NN HH MM AA`. `NN` is the binary alarm number 01-03;
+  `HH` and `MM` are packed BCD. A valid frame updates that alarm, selects its
+  display and is acknowledged with byte `06`.
 
 Example: set the clock to 19:35:50 by sending these hexadecimal bytes:
 
@@ -72,9 +75,10 @@ Frames with an invalid length, BCD digit or time range are ignored.
 ## PC time synchronization tool
 
 Run `chuankou\bin\SerialTimeSync.exe`, select the CH340 COM port and connect.
-`同步电脑当前时间` sends the current PC clock; `发送手动时间` sends the values
-entered in the three fields. The connection stays open, DTR/RTS remain disabled,
-and the interface reports success only after receiving the MCU's `06` ACK.
+The `时间同步` page can send the current PC clock or a manually entered time.
+The separate `闹钟设置` page can update any of the three alarms. The connection
+stays open, DTR/RTS remain disabled, and the interface reports success only after
+receiving the MCU's `06` ACK.
 
 ## Default values
 

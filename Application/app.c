@@ -40,12 +40,22 @@ void App_Service(void)
     unsigned char data hour;
     unsigned char data minute;
     unsigned char data second;
+    unsigned char data alarm_index;
     unsigned char data second_event;
 
     if (Uart1_TakeTime(&hour, &minute, &second))
     {
         Board_SetTime(hour, minute, second);
         DisplayState = STATE_CLOCK;
+        EditItem = FIELD_NONE;
+        UiTicks = 0;
+        App_Render();
+    }
+
+    if (Uart1_TakeAlarm(&alarm_index, &hour, &minute))
+    {
+        Board_SetAlarm(alarm_index, hour, minute);
+        DisplayState = STATE_ALARM;
         EditItem = FIELD_NONE;
         UiTicks = 0;
         App_Render();

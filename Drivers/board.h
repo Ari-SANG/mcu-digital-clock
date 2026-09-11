@@ -25,6 +25,8 @@ void Board_SetTime(unsigned char hour, unsigned char minute,
                    unsigned char second);
 void Board_AdjustClock(unsigned char field, unsigned char increase);
 void Board_AdjustAlarm(unsigned char field, unsigned char increase);
+void Board_SetAlarm(unsigned char index, unsigned char hour,
+                    unsigned char minute);
 void Board_SelectNextAlarm(void);
 unsigned char Board_GetAlarmHour(void);
 unsigned char Board_GetAlarmMinute(void);

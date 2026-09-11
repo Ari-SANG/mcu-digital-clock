@@ -27,6 +27,18 @@ namespace SerialTimeSync
         private readonly NumericUpDown hourInput = new NumericUpDown();
         private readonly NumericUpDown minuteInput = new NumericUpDown();
         private readonly NumericUpDown secondInput = new NumericUpDown();
+        private readonly NumericUpDown[] alarmHourInputs =
+        {
+            new NumericUpDown(), new NumericUpDown(), new NumericUpDown()
+        };
+        private readonly NumericUpDown[] alarmMinuteInputs =
+        {
+            new NumericUpDown(), new NumericUpDown(), new NumericUpDown()
+        };
+        private readonly Button[] alarmSyncButtons =
+        {
+            new Button(), new Button(), new Button()
+        };
         private readonly Timer clockTimer = new Timer();
         private readonly object serialLock = new object();
 
@@ -35,8 +47,8 @@ namespace SerialTimeSync
 
         public MainForm()
         {
-            Text = "单片机串口时间同步";
-            ClientSize = new Size(680, 520);
+            Text = "单片机串口控制助手";
+            ClientSize = new Size(680, 560);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -55,13 +67,13 @@ namespace SerialTimeSync
         private void BuildInterface()
         {
             Label title = new Label();
-            title.Text = "串口时间同步工具";
+            title.Text = "单片机串口控制助手";
             title.Font = new Font("Microsoft YaHei UI", 18F, FontStyle.Bold);
             title.AutoSize = true;
             title.Location = new Point(22, 18);
             Controls.Add(title);
 
-            GroupBox portGroup = CreateGroup("串口连接", 20, 62, 640, 94);
+            GroupBox portGroup = CreateGroup(this, "串口连接", 20, 62, 640, 94);
             AddLabel(portGroup, "串口：", 18, 34, 55);
             portCombo.DropDownStyle = ComboBoxStyle.DropDownList;
             portCombo.Location = new Point(72, 30);
@@ -84,19 +96,31 @@ namespace SerialTimeSync
                 "115200 · 8N1 · DTR/RTS 关闭", 470, 36, 155);
             settings.ForeColor = Color.DimGray;
 
-            GroupBox autoGroup = CreateGroup("自动校准", 20, 168, 640, 100);
+            TabControl tabs = new TabControl();
+            tabs.Location = new Point(20, 168);
+            tabs.Size = new Size(640, 260);
+            Controls.Add(tabs);
+
+            TabPage timePage = new TabPage("时间同步");
+            TabPage alarmPage = new TabPage("闹钟设置");
+            timePage.BackColor = SystemColors.Control;
+            alarmPage.BackColor = SystemColors.Control;
+            tabs.TabPages.Add(timePage);
+            tabs.TabPages.Add(alarmPage);
+
+            GroupBox autoGroup = CreateGroup(timePage, "自动校准", 10, 8, 610, 92);
             pcClockLabel.Font = new Font("Consolas", 17F, FontStyle.Bold);
             pcClockLabel.AutoSize = true;
             pcClockLabel.Location = new Point(18, 37);
             autoGroup.Controls.Add(pcClockLabel);
 
             autoSyncButton.Text = "同步电脑当前时间";
-            autoSyncButton.Location = new Point(438, 32);
+            autoSyncButton.Location = new Point(408, 28);
             autoSyncButton.Size = new Size(180, 42);
             autoSyncButton.Click += AutoSyncButtonClick;
             autoGroup.Controls.Add(autoSyncButton);
 
-            GroupBox manualGroup = CreateGroup("手动设置", 20, 280, 640, 112);
+            GroupBox manualGroup = CreateGroup(timePage, "手动设置", 10, 108, 610, 110);
             ConfigureTimeInput(hourInput, 0, 23, 22);
             ConfigureTimeInput(minuteInput, 0, 59, 116);
             ConfigureTimeInput(secondInput, 0, 59, 210);
@@ -112,26 +136,36 @@ namespace SerialTimeSync
                 new Font("Consolas", 15F, FontStyle.Bold);
 
             fillNowButton.Text = "填入当前时间";
-            fillNowButton.Location = new Point(316, 47);
-            fillNowButton.Size = new Size(130, 36);
+            fillNowButton.Location = new Point(292, 47);
+            fillNowButton.Size = new Size(125, 36);
             fillNowButton.Click += delegate { FillCurrentTime(); };
             manualGroup.Controls.Add(fillNowButton);
 
             manualSyncButton.Text = "发送手动时间";
-            manualSyncButton.Location = new Point(458, 42);
-            manualSyncButton.Size = new Size(160, 46);
+            manualSyncButton.Location = new Point(430, 42);
+            manualSyncButton.Size = new Size(158, 46);
             manualSyncButton.Click += ManualSyncButtonClick;
             manualGroup.Controls.Add(manualSyncButton);
 
+            Label alarmHelp = AddLabel(alarmPage,
+                "分别设置三组闹钟；发送成功后，单片机会切换到对应闹钟显示。",
+                14, 12, 590);
+            alarmHelp.ForeColor = Color.DimGray;
+
+            GroupBox alarmGroup = CreateGroup(alarmPage, "修改闹钟", 10, 42, 610, 174);
+            BuildAlarmRow(alarmGroup, 0, 30, 8, 0);
+            BuildAlarmRow(alarmGroup, 1, 75, 12, 0);
+            BuildAlarmRow(alarmGroup, 2, 120, 16, 0);
+
             statusLabel.Text = "尚未连接";
             statusLabel.AutoSize = false;
-            statusLabel.Location = new Point(24, 408);
+            statusLabel.Location = new Point(24, 438);
             statusLabel.Size = new Size(630, 25);
             statusLabel.ForeColor = Color.FromArgb(45, 90, 135);
             Controls.Add(statusLabel);
 
-            logBox.Location = new Point(20, 438);
-            logBox.Size = new Size(640, 62);
+            logBox.Location = new Point(20, 468);
+            logBox.Size = new Size(640, 72);
             logBox.Multiline = true;
             logBox.ReadOnly = true;
             logBox.ScrollBars = ScrollBars.Vertical;
@@ -142,14 +176,49 @@ namespace SerialTimeSync
             UpdateButtonState();
         }
 
-        private GroupBox CreateGroup(string text, int x, int y, int width, int height)
+        private GroupBox CreateGroup(Control parent, string text, int x, int y,
+            int width, int height)
         {
             GroupBox group = new GroupBox();
             group.Text = text;
             group.Location = new Point(x, y);
             group.Size = new Size(width, height);
-            Controls.Add(group);
+            parent.Controls.Add(group);
             return group;
+        }
+
+        private void BuildAlarmRow(Control parent, int index, int y,
+            int defaultHour, int defaultMinute)
+        {
+            AddLabel(parent, "闹钟 " + (index + 1), 18, y + 3, 72);
+
+            NumericUpDown hour = alarmHourInputs[index];
+            hour.Minimum = 0;
+            hour.Maximum = 23;
+            hour.Value = defaultHour;
+            hour.Location = new Point(100, y);
+            hour.Size = new Size(65, 30);
+            hour.TextAlign = HorizontalAlignment.Center;
+            parent.Controls.Add(hour);
+            AddLabel(parent, "时", 170, y + 3, 30);
+
+            NumericUpDown minute = alarmMinuteInputs[index];
+            minute.Minimum = 0;
+            minute.Maximum = 59;
+            minute.Value = defaultMinute;
+            minute.Location = new Point(205, y);
+            minute.Size = new Size(65, 30);
+            minute.TextAlign = HorizontalAlignment.Center;
+            parent.Controls.Add(minute);
+            AddLabel(parent, "分", 275, y + 3, 30);
+
+            Button button = alarmSyncButtons[index];
+            button.Text = "写入闹钟 " + (index + 1);
+            button.Tag = index;
+            button.Location = new Point(405, y - 2);
+            button.Size = new Size(170, 34);
+            button.Click += AlarmSyncButtonClick;
+            parent.Controls.Add(button);
         }
 
         private static Label AddLabel(Control parent, string text, int x, int y,
@@ -227,7 +296,7 @@ namespace SerialTimeSync
                 serialPort.DiscardInBuffer();
                 serialPort.DiscardOutBuffer();
                 statusLabel.Text = "已连接 " + serialPort.PortName +
-                    "，可以同步时间";
+                    "，可以同步时间或设置闹钟";
                 AppendLog("串口已连接，DTR/RTS 已关闭，启动等待完成。",
                     Color.DarkGreen);
             }
@@ -257,8 +326,29 @@ namespace SerialTimeSync
                 (int)secondInput.Value, "手动设置");
         }
 
+        private async void AlarmSyncButtonClick(object sender, EventArgs e)
+        {
+            Button button = (Button)sender;
+            int index = (int)button.Tag;
+            int hour = (int)alarmHourInputs[index].Value;
+            int minute = (int)alarmMinuteInputs[index].Value;
+            byte[] frame = BuildAlarmFrame(index, hour, minute);
+            string value = String.Format("闹钟 {0} = {1:00}:{2:00}",
+                index + 1, hour, minute);
+            await SendFrameAsync(frame, "修改闹钟", value);
+        }
+
         private async Task SendTimeAsync(int hour, int minute, int second,
             string mode)
+        {
+            byte[] frame = BuildTimeFrame(hour, minute, second);
+            string value = String.Format("{0:00}:{1:00}:{2:00}",
+                hour, minute, second);
+            await SendFrameAsync(frame, mode, value);
+        }
+
+        private async Task SendFrameAsync(byte[] frame, string mode,
+            string value)
         {
             if (!IsConnected)
             {
@@ -267,7 +357,6 @@ namespace SerialTimeSync
                 return;
             }
 
-            byte[] frame = BuildFrame(hour, minute, second);
             SetBusy(true);
             statusLabel.Text = mode + "发送中，等待单片机 ACK…";
 
@@ -294,9 +383,7 @@ namespace SerialTimeSync
                 });
 
                 string frameText = BitConverter.ToString(frame).Replace('-', ' ');
-                statusLabel.Text = mode + "成功：" +
-                    String.Format("{0:00}:{1:00}:{2:00}", hour, minute, second) +
-                    "，已收到 ACK 06";
+                statusLabel.Text = mode + "成功：" + value + "，已收到 ACK 06";
                 AppendLog(DateTime.Now.ToString("HH:mm:ss") + "  TX  " +
                     frameText + "  RX  06", Color.DarkGreen);
             }
@@ -324,11 +411,19 @@ namespace SerialTimeSync
             }
         }
 
-        private static byte[] BuildFrame(int hour, int minute, int second)
+        private static byte[] BuildTimeFrame(int hour, int minute, int second)
         {
             return new byte[]
             {
                 FrameHead, ToBcd(hour), ToBcd(minute), ToBcd(second), FrameTail
+            };
+        }
+
+        private static byte[] BuildAlarmFrame(int index, int hour, int minute)
+        {
+            return new byte[]
+            {
+                0x02, (byte)(index + 1), ToBcd(hour), ToBcd(minute), FrameTail
             };
         }
 
@@ -370,6 +465,8 @@ namespace SerialTimeSync
             connectButton.Text = connected ? "断开" : "连接";
             autoSyncButton.Enabled = connected && !busy;
             manualSyncButton.Enabled = connected && !busy;
+            foreach (Button button in alarmSyncButtons)
+                button.Enabled = connected && !busy;
         }
 
         private void Disconnect()

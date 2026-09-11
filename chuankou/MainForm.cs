@@ -16,7 +16,8 @@ namespace SerialTimeSync
         private const byte Ack = 0x06;
         private static readonly string[] MelodyNames =
         {
-            "音乐1 · 小星星", "音乐2 · 欢乐颂", "音乐3 · 生日快乐"
+            "音乐1 · 欢乐颂", "音乐2 · 天空之城",
+            "音乐3 · 圣诞快乐，劳伦斯先生", "音乐4 · 反方向的钟"
         };
 
         private readonly ComboBox portCombo = new ComboBox();
@@ -225,14 +226,15 @@ namespace SerialTimeSync
             music.Items.AddRange(MelodyNames);
             music.SelectedIndex = index;
             music.Location = new Point(255, y);
-            music.Size = new Size(160, 30);
+            music.Size = new Size(210, 30);
+            music.DropDownWidth = 260;
             parent.Controls.Add(music);
 
             Button button = alarmSyncButtons[index];
             button.Text = "写入闹钟 " + (index + 1);
             button.Tag = index;
-            button.Location = new Point(430, y - 2);
-            button.Size = new Size(150, 34);
+            button.Location = new Point(475, y - 2);
+            button.Size = new Size(105, 34);
             button.Click += AlarmSyncButtonClick;
             parent.Controls.Add(button);
         }

@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 15:09:59 PAGE 1   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 15:44:11 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE UART1
@@ -62,7 +62,7 @@ line level    source
   52   1          EA = 1;
   53   1          return 1;
   54   1      }
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 15:09:59 PAGE 2   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 15:44:11 PAGE 2   
 
   55          
   56          bit Uart1_TakeTime(unsigned char data *hour,
@@ -126,7 +126,7 @@ line level    source
  114   3                  else if ((value == 0xAAU) && (RxCommand == 0x02U) &&
  115   3                           (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
  116   3                           Uart1_BcdValid(RxData[1]) &&
-C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 15:09:59 PAGE 3   
+C51 COMPILER V9.60.7.0   UART1                                                             09/11/2026 15:44:11 PAGE 3   
 
  117   3                           Uart1_BcdValid(RxData[2]))
  118   3                  {

@@ -6,17 +6,30 @@
 
 #define NOTE_REST  0U
 #define NOTE_C5    1U
-#define NOTE_D5    2U
-#define NOTE_E5    3U
-#define NOTE_F5    4U
-#define NOTE_G5    5U
-#define NOTE_A5    6U
-#define NOTE_B5    7U
-#define NOTE_C6    8U
-#define NOTE_D6    9U
-#define NOTE_E6    10U
-#define NOTE_F6    11U
-#define NOTE_G6    12U
+#define NOTE_CS5   2U
+#define NOTE_D5    3U
+#define NOTE_DS5   4U
+#define NOTE_E5    5U
+#define NOTE_F5    6U
+#define NOTE_FS5   7U
+#define NOTE_G5    8U
+#define NOTE_GS5   9U
+#define NOTE_A5    10U
+#define NOTE_AS5   11U
+#define NOTE_B5    12U
+#define NOTE_C6    13U
+#define NOTE_CS6   14U
+#define NOTE_D6    15U
+#define NOTE_DS6   16U
+#define NOTE_E6    17U
+#define NOTE_F6    18U
+#define NOTE_FS6   19U
+#define NOTE_G6    20U
+#define NOTE_GS6   21U
+#define NOTE_A6    22U
+#define NOTE_AS6   23U
+#define NOTE_B6    24U
+#define NOTE_C7    25U
 
 #define NOTE_UNIT_MS 50U
 #define NOTE_GAP_MS  25U
@@ -28,21 +41,7 @@ sbit MUSIC_BUZZER = P3^5;
 /* Each pair is note, duration in 50 ms units. */
 static unsigned char code MelodyData[] =
 {
-    /* 0: Twinkle Twinkle Little Star, complete main melody. */
-    NOTE_C5,10, NOTE_C5,10, NOTE_G5,10, NOTE_G5,10,
-    NOTE_A5,10, NOTE_A5,10, NOTE_G5,20,
-    NOTE_F5,10, NOTE_F5,10, NOTE_E5,10, NOTE_E5,10,
-    NOTE_D5,10, NOTE_D5,10, NOTE_C5,20,
-    NOTE_G5,10, NOTE_G5,10, NOTE_F5,10, NOTE_F5,10,
-    NOTE_E5,10, NOTE_E5,10, NOTE_D5,20,
-    NOTE_G5,10, NOTE_G5,10, NOTE_F5,10, NOTE_F5,10,
-    NOTE_E5,10, NOTE_E5,10, NOTE_D5,20,
-    NOTE_C5,10, NOTE_C5,10, NOTE_G5,10, NOTE_G5,10,
-    NOTE_A5,10, NOTE_A5,10, NOTE_G5,20,
-    NOTE_F5,10, NOTE_F5,10, NOTE_E5,10, NOTE_E5,10,
-    NOTE_D5,10, NOTE_D5,10, NOTE_C5,20, NOTE_REST,4,
-
-    /* 1: Ode to Joy */
+    /* 0: Ode to Joy. */
     NOTE_E5,8, NOTE_E5,8, NOTE_F5,8, NOTE_G5,8,
     NOTE_G5,8, NOTE_F5,8, NOTE_E5,8, NOTE_D5,8,
     NOTE_C5,8, NOTE_C5,8, NOTE_D5,8, NOTE_E5,8,
@@ -52,24 +51,52 @@ static unsigned char code MelodyData[] =
     NOTE_C5,8, NOTE_C5,8, NOTE_D5,8, NOTE_E5,8,
     NOTE_D5,12, NOTE_C5,4, NOTE_C5,16, NOTE_REST,6,
 
-    /* 2: Happy Birthday */
-    NOTE_G5,4, NOTE_G5,4, NOTE_A5,8, NOTE_G5,8,
-    NOTE_C6,8, NOTE_B5,16, NOTE_G5,4, NOTE_G5,4,
-    NOTE_A5,8, NOTE_G5,8, NOTE_D6,8, NOTE_C6,16,
-    NOTE_G5,4, NOTE_G5,4, NOTE_G6,8, NOTE_E6,8,
-    NOTE_C6,8, NOTE_B5,8, NOTE_A5,16,
-    NOTE_F6,4, NOTE_F6,4, NOTE_E6,8, NOTE_C6,8,
-    NOTE_D6,8, NOTE_C6,16, NOTE_REST,4
+    /* 1: Castle in the Sky, main vocal-theme excerpt. */
+    NOTE_A5,4, NOTE_B5,4, NOTE_C6,8, NOTE_B5,4,
+    NOTE_C6,8, NOTE_E6,8, NOTE_B5,12,
+    NOTE_E5,4, NOTE_A5,4, NOTE_G5,8, NOTE_A5,4,
+    NOTE_C6,8, NOTE_G5,12,
+    NOTE_E5,4, NOTE_F5,4, NOTE_E5,8, NOTE_F5,4,
+    NOTE_C6,8, NOTE_E5,12,
+    NOTE_C6,4, NOTE_C6,4, NOTE_B5,8, NOTE_FS5,8,
+    NOTE_FS5,4, NOTE_B5,8, NOTE_B5,12, NOTE_REST,4,
+
+    /* 2: Merry Christmas, Mr. Lawrence, main-theme excerpt. */
+    NOTE_DS5,4, NOTE_F5,4, NOTE_DS5,4, NOTE_AS5,8,
+    NOTE_DS5,8,
+    NOTE_AS5,4, NOTE_DS5,4, NOTE_F5,8, NOTE_DS5,4,
+    NOTE_F5,4, NOTE_GS5,8,
+    NOTE_F5,4, NOTE_DS5,4, NOTE_F5,8, NOTE_DS5,4,
+    NOTE_AS5,8,
+    NOTE_CS6,4, NOTE_CS6,4, NOTE_C6,8, NOTE_GS5,8,
+    NOTE_F5,12, NOTE_REST,4,
+
+    /* 3: Counter-clockwise Clock, recognizable intro excerpt. */
+    NOTE_A5,6, NOTE_G5,6, NOTE_E5,6, NOTE_D5,6,
+    NOTE_G5,6, NOTE_A5,6, NOTE_G5,12, NOTE_A5,6,
+    NOTE_D5,6, NOTE_E5,6, NOTE_G5,6, NOTE_A5,18,
+    NOTE_A5,6, NOTE_G5,6, NOTE_E5,6, NOTE_D5,6,
+    NOTE_G5,6, NOTE_A5,6, NOTE_G5,12, NOTE_A5,6,
+    NOTE_D5,6, NOTE_E5,6, NOTE_G5,6, NOTE_A5,18,
+    NOTE_REST,4
 };
 
-static unsigned char code MelodyOffsets[4] = { 0U, 86U, 150U, 202U };
-
-static unsigned int code ToneReloads[12] =
+static unsigned char code MelodyOffsets[5] =
 {
-    T0_RELOAD(523UL), T0_RELOAD(587UL), T0_RELOAD(659UL),
-    T0_RELOAD(698UL), T0_RELOAD(784UL), T0_RELOAD(880UL),
-    T0_RELOAD(988UL), T0_RELOAD(1047UL), T0_RELOAD(1175UL),
-    T0_RELOAD(1319UL), T0_RELOAD(1397UL), T0_RELOAD(1568UL)
+    0U, 64U, 118U, 162U, 212U
+};
+
+static unsigned int code ToneReloads[25] =
+{
+    T0_RELOAD(523UL),  T0_RELOAD(554UL),  T0_RELOAD(587UL),
+    T0_RELOAD(622UL),  T0_RELOAD(659UL),  T0_RELOAD(698UL),
+    T0_RELOAD(740UL),  T0_RELOAD(784UL),  T0_RELOAD(831UL),
+    T0_RELOAD(880UL),  T0_RELOAD(932UL),  T0_RELOAD(988UL),
+    T0_RELOAD(1047UL), T0_RELOAD(1109UL), T0_RELOAD(1175UL),
+    T0_RELOAD(1245UL), T0_RELOAD(1319UL), T0_RELOAD(1397UL),
+    T0_RELOAD(1480UL), T0_RELOAD(1568UL), T0_RELOAD(1661UL),
+    T0_RELOAD(1760UL), T0_RELOAD(1865UL), T0_RELOAD(1976UL),
+    T0_RELOAD(2093UL)
 };
 
 static unsigned char data MelodyStart;

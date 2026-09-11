@@ -1,7 +1,7 @@
 #ifndef MUSIC_H
 #define MUSIC_H
 
-#define MUSIC_COUNT         3U
+#define MUSIC_COUNT         4U
 #define MUSIC_PREVIEW_MS    6000U
 
 extern volatile bit MusicPlaying;

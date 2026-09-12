@@ -40,9 +40,16 @@ static unsigned char data Divider10ms;
 unsigned char data AlarmHours[ALARM_COUNT];
 unsigned char data AlarmMinutes[ALARM_COUNT];
 unsigned char data AlarmMelodies[ALARM_COUNT];
+unsigned char data AlarmEnabledMask;
 unsigned char data SelectedAlarm;
+static unsigned char data RingingAlarm;
 static volatile unsigned int data AlarmMs;
 volatile bit AlarmRinging;
+static bit SnoozeActive;
+static unsigned char data SnoozeHour;
+static unsigned char data SnoozeMinute;
+static unsigned char data SnoozeSecond;
+static unsigned char data SnoozeAlarm;
 
 void Board_Init(void)
 {
@@ -77,9 +84,12 @@ void Board_Init(void)
     AlarmMelodies[0] = ALARM1_START_MUSIC;
     AlarmMelodies[1] = ALARM2_START_MUSIC;
     AlarmMelodies[2] = ALARM3_START_MUSIC;
+    AlarmEnabledMask = ALARM_ENABLED_ALL;
     SelectedAlarm = 0;
+    RingingAlarm = 0;
     AlarmRinging = 0;
     AlarmMs = 0;
+    SnoozeActive = 0;
 
     Disp[0] = 10U; Disp[1] = 10U; Disp[2] = 10U; Disp[3] = 10U;
     BlinkMask = 0;
@@ -153,6 +163,7 @@ void Board_SetTime(unsigned char hour, unsigned char minute,
     ClockMinute = minute;
     ClockSecond = second;
     ClockMillisecond = 0;
+    SnoozeActive = 0;
     EA = 1;
 }
 
@@ -175,6 +186,7 @@ void Board_AdjustClock(unsigned char field, unsigned char increase)
             ClockSecond = (ClockSecond == 0U) ? 59U : ClockSecond - 1U;
     }
     ClockMillisecond = 0;
+    SnoozeActive = 0;
     EA = 1;
 }
 
@@ -227,6 +239,21 @@ void Board_SetAlarm(unsigned char index, unsigned char hour,
     SelectedAlarm = index;
 }
 
+void Board_SetAlarmEnabled(unsigned char index, unsigned char enabled)
+{
+    unsigned char data mask;
+
+    mask = 1U << index;
+    if (enabled)
+        AlarmEnabledMask |= mask;
+    else
+    {
+        AlarmEnabledMask &= ~mask;
+        if (SnoozeActive && (SnoozeAlarm == index)) SnoozeActive = 0;
+        if (AlarmRinging && (RingingAlarm == index)) Board_StopAlarm();
+    }
+}
+
 void Board_SelectNextAlarm(void)
 {
     if (++SelectedAlarm >= ALARM_COUNT)
@@ -239,7 +266,8 @@ bit Board_IsAlarmTime(unsigned char hour, unsigned char minute)
 
     for (i = 0; i < ALARM_COUNT; i++)
     {
-        if ((hour == AlarmHours[i]) && (minute == AlarmMinutes[i]))
+        if ((AlarmEnabledMask & (1U << i)) &&
+            (hour == AlarmHours[i]) && (minute == AlarmMinutes[i]))
         {
             SelectedAlarm = i;
             return 1;
@@ -248,11 +276,52 @@ bit Board_IsAlarmTime(unsigned char hour, unsigned char minute)
     return 0;
 }
 
+void Board_CheckAlarms(void)
+{
+    if (SnoozeActive &&
+        (ClockHour == SnoozeHour) &&
+        (ClockMinute == SnoozeMinute) &&
+        (ClockSecond == SnoozeSecond))
+    {
+        SnoozeActive = 0;
+        if (!AlarmRinging)
+        {
+            SelectedAlarm = SnoozeAlarm;
+            Board_StartAlarm();
+        }
+        return;
+    }
+
+    if (!AlarmRinging &&
+        (ClockSecond == 0U) &&
+        Board_IsAlarmTime(ClockHour, ClockMinute))
+        Board_StartAlarm();
+}
+
+void Board_SnoozeAlarm(void)
+{
+    EA = 0;
+    SnoozeHour = ClockHour;
+    SnoozeMinute = ClockMinute + ALARM_SNOOZE_MINUTES;
+    SnoozeSecond = ClockSecond;
+    if (SnoozeMinute >= 60U)
+    {
+        SnoozeMinute -= 60U;
+        if (++SnoozeHour >= 24U) SnoozeHour = 0;
+    }
+    SnoozeAlarm = RingingAlarm;
+    SnoozeActive = 1;
+    AlarmRinging = 0;
+    EA = 1;
+    Music_Stop();
+}
+
 void Board_StartAlarm(void)
 {
     AlarmMs = 0;
+    RingingAlarm = SelectedAlarm;
     AlarmRinging = 1;
-    Music_Start(AlarmMelodies[SelectedAlarm], 0U);
+    Music_Start(AlarmMelodies[RingingAlarm], 0U);
 }
 
 void Board_StartClockTick(void)

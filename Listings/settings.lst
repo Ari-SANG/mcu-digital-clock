@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   SETTINGS                                                          09/11/2026 16:44:23 PAGE 1   
+C51 COMPILER V9.60.7.0   SETTINGS                                                          09/12/2026 14:22:22 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE SETTINGS
@@ -37,375 +37,386 @@ line level    source
   27          #define RECORD_MAGIC1          0x4BU
   28          #define RECORD_VERSION         1U
   29          #define RECORD_VALID_MARKER    0xA5U
-  30          
-  31          #define OFFSET_MAGIC0          0U
-  32          #define OFFSET_MAGIC1          1U
-  33          #define OFFSET_VERSION         2U
-  34          #define OFFSET_RESERVED        3U
-  35          #define OFFSET_SEQUENCE_LOW    4U
-  36          #define OFFSET_SEQUENCE_HIGH   5U
-  37          #define OFFSET_CLOCK_HOUR      6U
-  38          #define OFFSET_CLOCK_MINUTE    7U
-  39          #define OFFSET_CLOCK_SECOND    8U
-  40          #define OFFSET_ALARMS          9U
-  41          #define OFFSET_CRC             18U
-  42          #define OFFSET_VALID           19U
-  43          
-  44          static unsigned char xdata RecordBuffer[SETTINGS_RECORD_SIZE];
-  45          static unsigned char data ActiveSector;
-  46          static unsigned char data SaveAttempts;
-  47          static unsigned int data NextSequence;
-  48          static bit SavePending;
-  49          
-  50          static void Settings_IapIdle(void)
-  51          {
-  52   1          IAP_CONTR = 0;
-  53   1          IAP_CMD = IAP_CMD_IDLE;
-  54   1          IAP_TRIG = 0;
-C51 COMPILER V9.60.7.0   SETTINGS                                                          09/11/2026 16:44:23 PAGE 2   
+  30          #define RECORD_ENABLED_TAG     0xA0U
+  31          
+  32          #define OFFSET_MAGIC0          0U
+  33          #define OFFSET_MAGIC1          1U
+  34          #define OFFSET_VERSION         2U
+  35          #define OFFSET_RESERVED        3U
+  36          #define OFFSET_SEQUENCE_LOW    4U
+  37          #define OFFSET_SEQUENCE_HIGH   5U
+  38          #define OFFSET_CLOCK_HOUR      6U
+  39          #define OFFSET_CLOCK_MINUTE    7U
+  40          #define OFFSET_CLOCK_SECOND    8U
+  41          #define OFFSET_ALARMS          9U
+  42          #define OFFSET_CRC             18U
+  43          #define OFFSET_VALID           19U
+  44          
+  45          static unsigned char xdata RecordBuffer[SETTINGS_RECORD_SIZE];
+  46          static unsigned char data ActiveSector;
+  47          static unsigned char data SaveAttempts;
+  48          static unsigned int data NextSequence;
+  49          static bit SavePending;
+  50          
+  51          static void Settings_IapIdle(void)
+  52          {
+  53   1          IAP_CONTR = 0;
+  54   1          IAP_CMD = IAP_CMD_IDLE;
+C51 COMPILER V9.60.7.0   SETTINGS                                                          09/12/2026 14:22:22 PAGE 2   
 
-  55   1          IAP_ADDRH = 0x80U;
-  56   1          IAP_ADDRL = 0;
-  57   1      }
-  58          
-  59          static unsigned char Settings_IapRead(unsigned int address)
-  60          {
-  61   1          unsigned char data value;
-  62   1          unsigned char data interrupt_state;
-  63   1      
-  64   1          interrupt_state = EA;
-  65   1          EA = 0;
-  66   1          IAP_CONTR = IAP_ENABLE_11MHZ;
-  67   1          IAP_CMD = IAP_CMD_READ;
-  68   1          IAP_ADDRL = (unsigned char)address;
-  69   1          IAP_ADDRH = (unsigned char)(address >> 8);
-  70   1          IAP_TRIG = 0x5AU;
-  71   1          IAP_TRIG = 0xA5U;
-  72   1          _nop_();
-  73   1          value = IAP_DATA;
-  74   1          Settings_IapIdle();
-  75   1          EA = interrupt_state;
-  76   1          return value;
-  77   1      }
-  78          
-  79          static void Settings_IapProgram(unsigned int address, unsigned char value)
-  80          {
-  81   1          unsigned char data interrupt_state;
-  82   1      
-  83   1          interrupt_state = EA;
-  84   1          EA = 0;
-  85   1          IAP_CONTR = IAP_ENABLE_11MHZ;
-  86   1          IAP_CMD = IAP_CMD_PROGRAM;
-  87   1          IAP_ADDRL = (unsigned char)address;
-  88   1          IAP_ADDRH = (unsigned char)(address >> 8);
-  89   1          IAP_DATA = value;
-  90   1          IAP_TRIG = 0x5AU;
-  91   1          IAP_TRIG = 0xA5U;
-  92   1          _nop_();
-  93   1          Settings_IapIdle();
-  94   1          EA = interrupt_state;
-  95   1      }
-  96          
-  97          static void Settings_IapErase(unsigned int address)
-  98          {
-  99   1          unsigned char data interrupt_state;
- 100   1      
- 101   1          interrupt_state = EA;
- 102   1          EA = 0;
- 103   1          IAP_CONTR = IAP_ENABLE_11MHZ;
- 104   1          IAP_CMD = IAP_CMD_ERASE;
- 105   1          IAP_ADDRL = (unsigned char)address;
- 106   1          IAP_ADDRH = (unsigned char)(address >> 8);
- 107   1          IAP_TRIG = 0x5AU;
- 108   1          IAP_TRIG = 0xA5U;
- 109   1          _nop_();
- 110   1          Settings_IapIdle();
- 111   1          EA = interrupt_state;
- 112   1      }
- 113          
- 114          static unsigned char Settings_Crc8(unsigned char length)
- 115          {
- 116   1          unsigned char data crc;
-C51 COMPILER V9.60.7.0   SETTINGS                                                          09/11/2026 16:44:23 PAGE 3   
+  55   1          IAP_TRIG = 0;
+  56   1          IAP_ADDRH = 0x80U;
+  57   1          IAP_ADDRL = 0;
+  58   1      }
+  59          
+  60          static unsigned char Settings_IapRead(unsigned int address)
+  61          {
+  62   1          unsigned char data value;
+  63   1          unsigned char data interrupt_state;
+  64   1      
+  65   1          interrupt_state = EA;
+  66   1          EA = 0;
+  67   1          IAP_CONTR = IAP_ENABLE_11MHZ;
+  68   1          IAP_CMD = IAP_CMD_READ;
+  69   1          IAP_ADDRL = (unsigned char)address;
+  70   1          IAP_ADDRH = (unsigned char)(address >> 8);
+  71   1          IAP_TRIG = 0x5AU;
+  72   1          IAP_TRIG = 0xA5U;
+  73   1          _nop_();
+  74   1          value = IAP_DATA;
+  75   1          Settings_IapIdle();
+  76   1          EA = interrupt_state;
+  77   1          return value;
+  78   1      }
+  79          
+  80          static void Settings_IapProgram(unsigned int address, unsigned char value)
+  81          {
+  82   1          unsigned char data interrupt_state;
+  83   1      
+  84   1          interrupt_state = EA;
+  85   1          EA = 0;
+  86   1          IAP_CONTR = IAP_ENABLE_11MHZ;
+  87   1          IAP_CMD = IAP_CMD_PROGRAM;
+  88   1          IAP_ADDRL = (unsigned char)address;
+  89   1          IAP_ADDRH = (unsigned char)(address >> 8);
+  90   1          IAP_DATA = value;
+  91   1          IAP_TRIG = 0x5AU;
+  92   1          IAP_TRIG = 0xA5U;
+  93   1          _nop_();
+  94   1          Settings_IapIdle();
+  95   1          EA = interrupt_state;
+  96   1      }
+  97          
+  98          static void Settings_IapErase(unsigned int address)
+  99          {
+ 100   1          unsigned char data interrupt_state;
+ 101   1      
+ 102   1          interrupt_state = EA;
+ 103   1          EA = 0;
+ 104   1          IAP_CONTR = IAP_ENABLE_11MHZ;
+ 105   1          IAP_CMD = IAP_CMD_ERASE;
+ 106   1          IAP_ADDRL = (unsigned char)address;
+ 107   1          IAP_ADDRH = (unsigned char)(address >> 8);
+ 108   1          IAP_TRIG = 0x5AU;
+ 109   1          IAP_TRIG = 0xA5U;
+ 110   1          _nop_();
+ 111   1          Settings_IapIdle();
+ 112   1          EA = interrupt_state;
+ 113   1      }
+ 114          
+ 115          static unsigned char Settings_Crc8(unsigned char length)
+ 116          {
+C51 COMPILER V9.60.7.0   SETTINGS                                                          09/12/2026 14:22:22 PAGE 3   
 
- 117   1          unsigned char data value;
- 118   1          unsigned char data byte_index;
- 119   1          unsigned char data bit_index;
- 120   1      
- 121   1          crc = 0;
- 122   1          for (byte_index = 0; byte_index < length; byte_index++)
- 123   1          {
- 124   2              value = RecordBuffer[byte_index];
- 125   2              crc ^= value;
- 126   2              for (bit_index = 0; bit_index < 8U; bit_index++)
- 127   2              {
- 128   3                  if (crc & 0x80U) crc = (crc << 1) ^ 0x07U;
- 129   3                  else crc <<= 1;
- 130   3              }
- 131   2          }
- 132   1          return crc;
- 133   1      }
- 134          
- 135          static bit Settings_RecordFieldsValid(void)
- 136          {
- 137   1          unsigned char data index;
- 138   1          unsigned char data offset;
- 139   1      
- 140   1          if ((RecordBuffer[OFFSET_CLOCK_HOUR] >= 24U) ||
- 141   1              (RecordBuffer[OFFSET_CLOCK_MINUTE] >= 60U) ||
- 142   1              (RecordBuffer[OFFSET_CLOCK_SECOND] >= 60U))
- 143   1              return 0;
- 144   1      
- 145   1          for (index = 0; index < ALARM_COUNT; index++)
- 146   1          {
- 147   2              offset = OFFSET_ALARMS + index * 3U;
- 148   2              if ((RecordBuffer[offset] >= 24U) ||
- 149   2                  (RecordBuffer[offset + 1U] >= 60U) ||
- 150   2                  (RecordBuffer[offset + 2U] >= MUSIC_COUNT))
- 151   2                  return 0;
- 152   2          }
- 153   1          return 1;
- 154   1      }
- 155          
- 156          static bit Settings_ReadRecord(unsigned int address,
- 157                                         unsigned int data *sequence)
- 158          {
- 159   1          unsigned char data index;
- 160   1      
- 161   1          if (Settings_IapRead(address + OFFSET_VALID) != RECORD_VALID_MARKER)
- 162   1              return 0;
- 163   1      
- 164   1          for (index = 0; index < SETTINGS_RECORD_SIZE; index++)
- 165   1              RecordBuffer[index] = Settings_IapRead(address + index);
- 166   1      
- 167   1          if ((RecordBuffer[OFFSET_MAGIC0] != RECORD_MAGIC0) ||
- 168   1              (RecordBuffer[OFFSET_MAGIC1] != RECORD_MAGIC1) ||
- 169   1              (RecordBuffer[OFFSET_VERSION] != RECORD_VERSION) ||
- 170   1              (RecordBuffer[OFFSET_VALID] != RECORD_VALID_MARKER) ||
- 171   1              (RecordBuffer[OFFSET_CRC] != Settings_Crc8(OFFSET_CRC)) ||
- 172   1              !Settings_RecordFieldsValid())
- 173   1              return 0;
- 174   1      
- 175   1          *sequence = (unsigned int)RecordBuffer[OFFSET_SEQUENCE_LOW] |
- 176   1                      ((unsigned int)RecordBuffer[OFFSET_SEQUENCE_HIGH] << 8);
- 177   1          return 1;
- 178   1      }
-C51 COMPILER V9.60.7.0   SETTINGS                                                          09/11/2026 16:44:23 PAGE 4   
+ 117   1          unsigned char data crc;
+ 118   1          unsigned char data value;
+ 119   1          unsigned char data byte_index;
+ 120   1          unsigned char data bit_index;
+ 121   1      
+ 122   1          crc = 0;
+ 123   1          for (byte_index = 0; byte_index < length; byte_index++)
+ 124   1          {
+ 125   2              value = RecordBuffer[byte_index];
+ 126   2              crc ^= value;
+ 127   2              for (bit_index = 0; bit_index < 8U; bit_index++)
+ 128   2              {
+ 129   3                  if (crc & 0x80U) crc = (crc << 1) ^ 0x07U;
+ 130   3                  else crc <<= 1;
+ 131   3              }
+ 132   2          }
+ 133   1          return crc;
+ 134   1      }
+ 135          
+ 136          static bit Settings_RecordFieldsValid(void)
+ 137          {
+ 138   1          unsigned char data index;
+ 139   1          unsigned char data offset;
+ 140   1      
+ 141   1          if ((RecordBuffer[OFFSET_CLOCK_HOUR] >= 24U) ||
+ 142   1              (RecordBuffer[OFFSET_CLOCK_MINUTE] >= 60U) ||
+ 143   1              (RecordBuffer[OFFSET_CLOCK_SECOND] >= 60U))
+ 144   1              return 0;
+ 145   1      
+ 146   1          /* Version 1 records used zero here and had all alarms enabled. */
+ 147   1          if ((RecordBuffer[OFFSET_RESERVED] != 0U) &&
+ 148   1              ((RecordBuffer[OFFSET_RESERVED] & ~ALARM_ENABLED_ALL) !=
+ 149   1               RECORD_ENABLED_TAG))
+ 150   1              return 0;
+ 151   1      
+ 152   1          for (index = 0; index < ALARM_COUNT; index++)
+ 153   1          {
+ 154   2              offset = OFFSET_ALARMS + index * 3U;
+ 155   2              if ((RecordBuffer[offset] >= 24U) ||
+ 156   2                  (RecordBuffer[offset + 1U] >= 60U) ||
+ 157   2                  (RecordBuffer[offset + 2U] >= MUSIC_COUNT))
+ 158   2                  return 0;
+ 159   2          }
+ 160   1          return 1;
+ 161   1      }
+ 162          
+ 163          static bit Settings_ReadRecord(unsigned int address,
+ 164                                         unsigned int data *sequence)
+ 165          {
+ 166   1          unsigned char data index;
+ 167   1      
+ 168   1          if (Settings_IapRead(address + OFFSET_VALID) != RECORD_VALID_MARKER)
+ 169   1              return 0;
+ 170   1      
+ 171   1          for (index = 0; index < SETTINGS_RECORD_SIZE; index++)
+ 172   1              RecordBuffer[index] = Settings_IapRead(address + index);
+ 173   1      
+ 174   1          if ((RecordBuffer[OFFSET_MAGIC0] != RECORD_MAGIC0) ||
+ 175   1              (RecordBuffer[OFFSET_MAGIC1] != RECORD_MAGIC1) ||
+ 176   1              (RecordBuffer[OFFSET_VERSION] != RECORD_VERSION) ||
+ 177   1              (RecordBuffer[OFFSET_VALID] != RECORD_VALID_MARKER) ||
+ 178   1              (RecordBuffer[OFFSET_CRC] != Settings_Crc8(OFFSET_CRC)) ||
+C51 COMPILER V9.60.7.0   SETTINGS                                                          09/12/2026 14:22:22 PAGE 4   
 
- 179          
- 180          static bit Settings_SequenceNewer(unsigned int candidate,
- 181                                            unsigned int current)
- 182          {
- 183   1          unsigned int data difference;
- 184   1      
- 185   1          difference = candidate - current;
- 186   1          return (difference != 0U) && (difference < 0x8000U);
- 187   1      }
- 188          
- 189          static bit Settings_RecordErased(unsigned int address)
- 190          {
- 191   1          unsigned char data index;
- 192   1      
- 193   1          for (index = 0; index < SETTINGS_RECORD_SIZE; index++)
- 194   1          {
- 195   2              if (Settings_IapRead(address + index) != 0xFFU) return 0;
- 196   2          }
- 197   1          return 1;
- 198   1      }
- 199          
- 200          static unsigned int Settings_SectorAddress(unsigned char sector)
- 201          {
- 202   1          return (sector == 0U) ? SETTINGS_SECTOR0 : SETTINGS_SECTOR1;
- 203   1      }
- 204          
- 205          static unsigned int Settings_FindBlankSlot(unsigned char sector)
- 206          {
- 207   1          unsigned char data slot;
- 208   1          unsigned int data address;
- 209   1      
- 210   1          address = Settings_SectorAddress(sector);
- 211   1          for (slot = 0; slot < SETTINGS_SLOT_COUNT; slot++)
- 212   1          {
- 213   2              if (Settings_RecordErased(address)) return address;
- 214   2              address += SETTINGS_RECORD_SIZE;
- 215   2          }
- 216   1          return SETTINGS_INVALID_ADDR;
- 217   1      }
- 218          
- 219          static void Settings_ApplyRecord(void)
- 220          {
- 221   1          unsigned char data index;
- 222   1          unsigned char data offset;
- 223   1      
- 224   1          ClockHour = RecordBuffer[OFFSET_CLOCK_HOUR];
- 225   1          ClockMinute = RecordBuffer[OFFSET_CLOCK_MINUTE];
- 226   1          ClockSecond = RecordBuffer[OFFSET_CLOCK_SECOND];
- 227   1          for (index = 0; index < ALARM_COUNT; index++)
- 228   1          {
- 229   2              offset = OFFSET_ALARMS + index * 3U;
- 230   2              AlarmHours[index] = RecordBuffer[offset];
- 231   2              AlarmMinutes[index] = RecordBuffer[offset + 1U];
- 232   2              AlarmMelodies[index] = RecordBuffer[offset + 2U];
- 233   2          }
- 234   1      }
- 235          
- 236          static void Settings_BuildRecord(unsigned int sequence)
- 237          {
- 238   1          unsigned char data index;
- 239   1          unsigned char data offset;
- 240   1          unsigned char data interrupt_state;
-C51 COMPILER V9.60.7.0   SETTINGS                                                          09/11/2026 16:44:23 PAGE 5   
+ 179   1              !Settings_RecordFieldsValid())
+ 180   1              return 0;
+ 181   1      
+ 182   1          *sequence = (unsigned int)RecordBuffer[OFFSET_SEQUENCE_LOW] |
+ 183   1                      ((unsigned int)RecordBuffer[OFFSET_SEQUENCE_HIGH] << 8);
+ 184   1          return 1;
+ 185   1      }
+ 186          
+ 187          static bit Settings_SequenceNewer(unsigned int candidate,
+ 188                                            unsigned int current)
+ 189          {
+ 190   1          unsigned int data difference;
+ 191   1      
+ 192   1          difference = candidate - current;
+ 193   1          return (difference != 0U) && (difference < 0x8000U);
+ 194   1      }
+ 195          
+ 196          static bit Settings_RecordErased(unsigned int address)
+ 197          {
+ 198   1          unsigned char data index;
+ 199   1      
+ 200   1          for (index = 0; index < SETTINGS_RECORD_SIZE; index++)
+ 201   1          {
+ 202   2              if (Settings_IapRead(address + index) != 0xFFU) return 0;
+ 203   2          }
+ 204   1          return 1;
+ 205   1      }
+ 206          
+ 207          static unsigned int Settings_SectorAddress(unsigned char sector)
+ 208          {
+ 209   1          return (sector == 0U) ? SETTINGS_SECTOR0 : SETTINGS_SECTOR1;
+ 210   1      }
+ 211          
+ 212          static unsigned int Settings_FindBlankSlot(unsigned char sector)
+ 213          {
+ 214   1          unsigned char data slot;
+ 215   1          unsigned int data address;
+ 216   1      
+ 217   1          address = Settings_SectorAddress(sector);
+ 218   1          for (slot = 0; slot < SETTINGS_SLOT_COUNT; slot++)
+ 219   1          {
+ 220   2              if (Settings_RecordErased(address)) return address;
+ 221   2              address += SETTINGS_RECORD_SIZE;
+ 222   2          }
+ 223   1          return SETTINGS_INVALID_ADDR;
+ 224   1      }
+ 225          
+ 226          static void Settings_ApplyRecord(void)
+ 227          {
+ 228   1          unsigned char data index;
+ 229   1          unsigned char data offset;
+ 230   1      
+ 231   1          ClockHour = RecordBuffer[OFFSET_CLOCK_HOUR];
+ 232   1          ClockMinute = RecordBuffer[OFFSET_CLOCK_MINUTE];
+ 233   1          ClockSecond = RecordBuffer[OFFSET_CLOCK_SECOND];
+ 234   1          AlarmEnabledMask = (RecordBuffer[OFFSET_RESERVED] == 0U) ?
+ 235   1                             ALARM_ENABLED_ALL :
+ 236   1                             (RecordBuffer[OFFSET_RESERVED] & ALARM_ENABLED_ALL);
+ 237   1          for (index = 0; index < ALARM_COUNT; index++)
+ 238   1          {
+ 239   2              offset = OFFSET_ALARMS + index * 3U;
+ 240   2              AlarmHours[index] = RecordBuffer[offset];
+C51 COMPILER V9.60.7.0   SETTINGS                                                          09/12/2026 14:22:22 PAGE 5   
 
- 241   1      
- 242   1          RecordBuffer[OFFSET_MAGIC0] = RECORD_MAGIC0;
- 243   1          RecordBuffer[OFFSET_MAGIC1] = RECORD_MAGIC1;
- 244   1          RecordBuffer[OFFSET_VERSION] = RECORD_VERSION;
- 245   1          RecordBuffer[OFFSET_RESERVED] = 0;
- 246   1          RecordBuffer[OFFSET_SEQUENCE_LOW] = (unsigned char)sequence;
- 247   1          RecordBuffer[OFFSET_SEQUENCE_HIGH] = (unsigned char)(sequence >> 8);
- 248   1      
- 249   1          interrupt_state = EA;
- 250   1          EA = 0;
- 251   1          RecordBuffer[OFFSET_CLOCK_HOUR] = ClockHour;
- 252   1          RecordBuffer[OFFSET_CLOCK_MINUTE] = ClockMinute;
- 253   1          RecordBuffer[OFFSET_CLOCK_SECOND] = ClockSecond;
- 254   1          for (index = 0; index < ALARM_COUNT; index++)
- 255   1          {
- 256   2              offset = OFFSET_ALARMS + index * 3U;
- 257   2              RecordBuffer[offset] = AlarmHours[index];
- 258   2              RecordBuffer[offset + 1U] = AlarmMinutes[index];
- 259   2              RecordBuffer[offset + 2U] = AlarmMelodies[index];
- 260   2          }
- 261   1          EA = interrupt_state;
- 262   1      
- 263   1          RecordBuffer[OFFSET_CRC] = Settings_Crc8(OFFSET_CRC);
- 264   1          RecordBuffer[OFFSET_VALID] = RECORD_VALID_MARKER;
- 265   1      }
- 266          
- 267          static bit Settings_WriteRecord(unsigned int address,
- 268                                          unsigned int sequence)
- 269          {
- 270   1          unsigned char data index;
- 271   1          unsigned int data stored_sequence;
- 272   1      
- 273   1          for (index = 0; index < OFFSET_VALID; index++)
- 274   1              Settings_IapProgram(address + index, RecordBuffer[index]);
- 275   1      
- 276   1          /* Commit last so an interrupted write cannot replace the old record. */
- 277   1          Settings_IapProgram(address + OFFSET_VALID, RECORD_VALID_MARKER);
- 278   1          return Settings_ReadRecord(address, &stored_sequence) &&
- 279   1                 (stored_sequence == sequence);
- 280   1      }
- 281          
- 282          static void Settings_SaveFailed(void)
- 283          {
- 284   1          if (++SaveAttempts >= SETTINGS_SAVE_RETRIES)
- 285   1          {
- 286   2              SaveAttempts = 0;
- 287   2              SavePending = 0;
- 288   2          }
- 289   1      }
- 290          
- 291          void Settings_Init(void)
- 292          {
- 293   1          unsigned char data sector;
- 294   1          unsigned char data slot;
- 295   1          unsigned char data found;
- 296   1          unsigned char data best_sector;
- 297   1          unsigned int data address;
- 298   1          unsigned int data sequence;
- 299   1          unsigned int data best_address;
- 300   1          unsigned int data best_sequence;
- 301   1      
- 302   1          Settings_IapIdle();
-C51 COMPILER V9.60.7.0   SETTINGS                                                          09/11/2026 16:44:23 PAGE 6   
+ 241   2              AlarmMinutes[index] = RecordBuffer[offset + 1U];
+ 242   2              AlarmMelodies[index] = RecordBuffer[offset + 2U];
+ 243   2          }
+ 244   1      }
+ 245          
+ 246          static void Settings_BuildRecord(unsigned int sequence)
+ 247          {
+ 248   1          unsigned char data index;
+ 249   1          unsigned char data offset;
+ 250   1          unsigned char data interrupt_state;
+ 251   1      
+ 252   1          RecordBuffer[OFFSET_MAGIC0] = RECORD_MAGIC0;
+ 253   1          RecordBuffer[OFFSET_MAGIC1] = RECORD_MAGIC1;
+ 254   1          RecordBuffer[OFFSET_VERSION] = RECORD_VERSION;
+ 255   1          RecordBuffer[OFFSET_RESERVED] = RECORD_ENABLED_TAG |
+ 256   1                                          AlarmEnabledMask;
+ 257   1          RecordBuffer[OFFSET_SEQUENCE_LOW] = (unsigned char)sequence;
+ 258   1          RecordBuffer[OFFSET_SEQUENCE_HIGH] = (unsigned char)(sequence >> 8);
+ 259   1      
+ 260   1          interrupt_state = EA;
+ 261   1          EA = 0;
+ 262   1          RecordBuffer[OFFSET_CLOCK_HOUR] = ClockHour;
+ 263   1          RecordBuffer[OFFSET_CLOCK_MINUTE] = ClockMinute;
+ 264   1          RecordBuffer[OFFSET_CLOCK_SECOND] = ClockSecond;
+ 265   1          for (index = 0; index < ALARM_COUNT; index++)
+ 266   1          {
+ 267   2              offset = OFFSET_ALARMS + index * 3U;
+ 268   2              RecordBuffer[offset] = AlarmHours[index];
+ 269   2              RecordBuffer[offset + 1U] = AlarmMinutes[index];
+ 270   2              RecordBuffer[offset + 2U] = AlarmMelodies[index];
+ 271   2          }
+ 272   1          EA = interrupt_state;
+ 273   1      
+ 274   1          RecordBuffer[OFFSET_CRC] = Settings_Crc8(OFFSET_CRC);
+ 275   1          RecordBuffer[OFFSET_VALID] = RECORD_VALID_MARKER;
+ 276   1      }
+ 277          
+ 278          static bit Settings_WriteRecord(unsigned int address,
+ 279                                          unsigned int sequence)
+ 280          {
+ 281   1          unsigned char data index;
+ 282   1          unsigned int data stored_sequence;
+ 283   1      
+ 284   1          for (index = 0; index < OFFSET_VALID; index++)
+ 285   1              Settings_IapProgram(address + index, RecordBuffer[index]);
+ 286   1      
+ 287   1          /* Commit last so an interrupted write cannot replace the old record. */
+ 288   1          Settings_IapProgram(address + OFFSET_VALID, RECORD_VALID_MARKER);
+ 289   1          return Settings_ReadRecord(address, &stored_sequence) &&
+ 290   1                 (stored_sequence == sequence);
+ 291   1      }
+ 292          
+ 293          static void Settings_SaveFailed(void)
+ 294          {
+ 295   1          if (++SaveAttempts >= SETTINGS_SAVE_RETRIES)
+ 296   1          {
+ 297   2              SaveAttempts = 0;
+ 298   2              SavePending = 0;
+ 299   2          }
+ 300   1      }
+ 301          
+ 302          void Settings_Init(void)
+C51 COMPILER V9.60.7.0   SETTINGS                                                          09/12/2026 14:22:22 PAGE 6   
 
- 303   1          SavePending = 0;
- 304   1          SaveAttempts = 0;
- 305   1          ActiveSector = 0xFFU;
- 306   1          NextSequence = 0;
- 307   1          found = 0;
- 308   1          best_sector = 0;
- 309   1          best_address = 0;
- 310   1          best_sequence = 0;
- 311   1      
- 312   1          for (sector = 0; sector < SETTINGS_SECTOR_COUNT; sector++)
- 313   1          {
- 314   2              address = Settings_SectorAddress(sector);
- 315   2              for (slot = 0; slot < SETTINGS_SLOT_COUNT; slot++)
- 316   2              {
- 317   3                  if (Settings_ReadRecord(address, &sequence))
- 318   3                  {
- 319   4                      if ((!found) || Settings_SequenceNewer(sequence, best_sequence))
- 320   4                      {
- 321   5                          found = 1;
- 322   5                          best_sector = sector;
- 323   5                          best_address = address;
- 324   5                          best_sequence = sequence;
- 325   5                      }
- 326   4                  }
- 327   3                  address += SETTINGS_RECORD_SIZE;
- 328   3              }
- 329   2          }
- 330   1      
- 331   1          if (found && Settings_ReadRecord(best_address, &sequence))
- 332   1          {
- 333   2              Settings_ApplyRecord();
- 334   2              ActiveSector = best_sector;
- 335   2              NextSequence = best_sequence + 1U;
- 336   2          }
- 337   1      }
- 338          
- 339          void Settings_RequestSave(void)
- 340          {
- 341   1          SaveAttempts = 0;
- 342   1          SavePending = 1;
- 343   1      }
- 344          
- 345          void Settings_Service(void)
- 346          {
- 347   1          unsigned char data target_sector;
- 348   1          unsigned int data address;
- 349   1      
- 350   1          if (!SavePending) return;
- 351   1      
- 352   1          if (ActiveSector < SETTINGS_SECTOR_COUNT)
- 353   1              address = Settings_FindBlankSlot(ActiveSector);
- 354   1          else
- 355   1              address = SETTINGS_INVALID_ADDR;
- 356   1      
- 357   1          if (address == SETTINGS_INVALID_ADDR)
- 358   1          {
- 359   2              target_sector = (ActiveSector == 0U) ? 1U : 0U;
- 360   2              Settings_IapErase(Settings_SectorAddress(target_sector));
- 361   2              address = Settings_FindBlankSlot(target_sector);
- 362   2          }
- 363   1          else
- 364   1              target_sector = ActiveSector;
-C51 COMPILER V9.60.7.0   SETTINGS                                                          09/11/2026 16:44:23 PAGE 7   
+ 303          {
+ 304   1          unsigned char data sector;
+ 305   1          unsigned char data slot;
+ 306   1          unsigned char data found;
+ 307   1          unsigned char data best_sector;
+ 308   1          unsigned int data address;
+ 309   1          unsigned int data sequence;
+ 310   1          unsigned int data best_address;
+ 311   1          unsigned int data best_sequence;
+ 312   1      
+ 313   1          Settings_IapIdle();
+ 314   1          SavePending = 0;
+ 315   1          SaveAttempts = 0;
+ 316   1          ActiveSector = 0xFFU;
+ 317   1          NextSequence = 0;
+ 318   1          found = 0;
+ 319   1          best_sector = 0;
+ 320   1          best_address = 0;
+ 321   1          best_sequence = 0;
+ 322   1      
+ 323   1          for (sector = 0; sector < SETTINGS_SECTOR_COUNT; sector++)
+ 324   1          {
+ 325   2              address = Settings_SectorAddress(sector);
+ 326   2              for (slot = 0; slot < SETTINGS_SLOT_COUNT; slot++)
+ 327   2              {
+ 328   3                  if (Settings_ReadRecord(address, &sequence))
+ 329   3                  {
+ 330   4                      if ((!found) || Settings_SequenceNewer(sequence, best_sequence))
+ 331   4                      {
+ 332   5                          found = 1;
+ 333   5                          best_sector = sector;
+ 334   5                          best_address = address;
+ 335   5                          best_sequence = sequence;
+ 336   5                      }
+ 337   4                  }
+ 338   3                  address += SETTINGS_RECORD_SIZE;
+ 339   3              }
+ 340   2          }
+ 341   1      
+ 342   1          if (found && Settings_ReadRecord(best_address, &sequence))
+ 343   1          {
+ 344   2              Settings_ApplyRecord();
+ 345   2              ActiveSector = best_sector;
+ 346   2              NextSequence = best_sequence + 1U;
+ 347   2          }
+ 348   1      }
+ 349          
+ 350          void Settings_RequestSave(void)
+ 351          {
+ 352   1          SaveAttempts = 0;
+ 353   1          SavePending = 1;
+ 354   1      }
+ 355          
+ 356          void Settings_Service(void)
+ 357          {
+ 358   1          unsigned char data target_sector;
+ 359   1          unsigned int data address;
+ 360   1      
+ 361   1          if (!SavePending) return;
+ 362   1      
+ 363   1          if (ActiveSector < SETTINGS_SECTOR_COUNT)
+ 364   1              address = Settings_FindBlankSlot(ActiveSector);
+C51 COMPILER V9.60.7.0   SETTINGS                                                          09/12/2026 14:22:22 PAGE 7   
 
- 365   1      
- 366   1          if (address == SETTINGS_INVALID_ADDR)
- 367   1          {
- 368   2              Settings_SaveFailed();
- 369   2              return;
- 370   2          }
- 371   1      
- 372   1          Settings_BuildRecord(NextSequence);
- 373   1          if (Settings_WriteRecord(address, NextSequence))
- 374   1          {
- 375   2              ActiveSector = target_sector;
- 376   2              NextSequence++;
- 377   2              SaveAttempts = 0;
- 378   2              SavePending = 0;
- 379   2          }
- 380   1          else
- 381   1              Settings_SaveFailed();
- 382   1      }
+ 365   1          else
+ 366   1              address = SETTINGS_INVALID_ADDR;
+ 367   1      
+ 368   1          if (address == SETTINGS_INVALID_ADDR)
+ 369   1          {
+ 370   2              target_sector = (ActiveSector == 0U) ? 1U : 0U;
+ 371   2              Settings_IapErase(Settings_SectorAddress(target_sector));
+ 372   2              address = Settings_FindBlankSlot(target_sector);
+ 373   2          }
+ 374   1          else
+ 375   1              target_sector = ActiveSector;
+ 376   1      
+ 377   1          if (address == SETTINGS_INVALID_ADDR)
+ 378   1          {
+ 379   2              Settings_SaveFailed();
+ 380   2              return;
+ 381   2          }
+ 382   1      
+ 383   1          Settings_BuildRecord(NextSequence);
+ 384   1          if (Settings_WriteRecord(address, NextSequence))
+ 385   1          {
+ 386   2              ActiveSector = target_sector;
+ 387   2              NextSequence++;
+ 388   2              SaveAttempts = 0;
+ 389   2              SavePending = 0;
+ 390   2          }
+ 391   1          else
+ 392   1              Settings_SaveFailed();
+ 393   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    987    ----
+   CODE SIZE        =   1021    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =     20    ----
    PDATA SIZE       =   ----    ----

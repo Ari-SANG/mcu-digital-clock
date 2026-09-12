@@ -1,4 +1,4 @@
-/* UART1 initialization and packed-BCD time frame parser. */
+/* UART1 command parser and interrupt-driven temperature reply. */
 
 #include <STC15.H>
 #include "config.h"
@@ -17,6 +17,13 @@ static volatile unsigned char data NewAlarmHour;
 static volatile unsigned char data NewAlarmMinute;
 static volatile unsigned char data NewAlarmMelody;
 static volatile bit NewAlarmReady;
+static volatile unsigned char data NewSwitchIndex;
+static volatile unsigned char data NewSwitchEnabled;
+static volatile bit NewSwitchReady;
+static volatile bit NewTemperatureRequest;
+static volatile unsigned char data TxTemperatureWhole;
+static volatile unsigned char data TxTemperatureDecimal;
+static volatile unsigned char data TxState;
 
 static bit Uart1_BcdValid(unsigned char value)
 {
@@ -28,6 +35,9 @@ void Uart1_Init(void)
     RxState = 0;
     NewTimeReady = 0;
     NewAlarmReady = 0;
+    NewSwitchReady = 0;
+    NewTemperatureRequest = 0;
+    TxState = 0;
     SCON = 0x50;
     AUXR |= 0x01;
     AUXR |= 0x04;
@@ -51,6 +61,37 @@ bit Uart1_TakeAlarm(unsigned char data *index,
     NewAlarmReady = 0;
     EA = 1;
     return 1;
+}
+
+bit Uart1_TakeAlarmSwitch(unsigned char data *index,
+                          unsigned char data *enabled)
+{
+    if (!NewSwitchReady) return 0;
+    EA = 0;
+    *index = NewSwitchIndex;
+    *enabled = NewSwitchEnabled;
+    NewSwitchReady = 0;
+    EA = 1;
+    return 1;
+}
+
+bit Uart1_TakeTemperatureRequest(void)
+{
+    if (!NewTemperatureRequest || (TxState != 0U)) return 0;
+    EA = 0;
+    NewTemperatureRequest = 0;
+    EA = 1;
+    return 1;
+}
+
+void Uart1_SendTemperature(unsigned char whole, unsigned char decimal)
+{
+    EA = 0;
+    TxTemperatureWhole = whole;
+    TxTemperatureDecimal = decimal;
+    TxState = 1U;
+    SBUF = 0x05U;
+    EA = 1;
 }
 
 bit Uart1_TakeTime(unsigned char data *hour,
@@ -80,13 +121,19 @@ void Uart1_Isr(void) interrupt 4 using 2
         value = SBUF;
         if (RxState == 0U)
         {
-            if ((value >= 0x01U) && (value <= 0x03U))
+            if ((value >= 0x01U) && (value <= 0x05U))
             {
                 RxCommand = value;
                 RxState = 1U;
             }
         }
-        else if (RxState <= ((RxCommand == 0x03U) ? 4U : 3U))
+        else if (RxCommand == 0x05U)
+        {
+            RxState = 0;
+            if (value == 0xAAU) NewTemperatureRequest = 1;
+        }
+        else if (RxState <= ((RxCommand == 0x04U) ? 2U :
+                            ((RxCommand == 0x03U) ? 4U : 3U)))
         {
             RxData[RxState - 1U] = value;
             RxState++;
@@ -146,7 +193,36 @@ void Uart1_Isr(void) interrupt 4 using 2
                     SBUF = 0x06U;
                 }
             }
+            else if ((value == 0xAAU) && (RxCommand == 0x04U) &&
+                     (RxData[0] >= 1U) && (RxData[0] <= ALARM_COUNT) &&
+                     (RxData[1] <= 1U))
+            {
+                NewSwitchIndex = RxData[0] - 1U;
+                NewSwitchEnabled = RxData[1];
+                NewSwitchReady = 1;
+                SBUF = 0x06U;
+            }
         }
     }
-    if (TI) TI = 0;
+    if (TI)
+    {
+        TI = 0;
+        if (TxState == 1U)
+        {
+            TxState = 2U;
+            SBUF = TxTemperatureWhole;
+        }
+        else if (TxState == 2U)
+        {
+            TxState = 3U;
+            SBUF = TxTemperatureDecimal;
+        }
+        else if (TxState == 3U)
+        {
+            TxState = 4U;
+            SBUF = 0xAAU;
+        }
+        else
+            TxState = 0;
+    }
 }

@@ -17,7 +17,7 @@ namespace SerialTimeSync
         private static readonly string[] MelodyNames =
         {
             "音乐1 · 欢乐颂", "音乐2 · 天空之城",
-            "音乐3 · 反方向的钟"
+            "音乐3 · 曹操"
         };
 
         private readonly ComboBox portCombo = new ComboBox();
@@ -48,11 +48,26 @@ namespace SerialTimeSync
         {
             new Button(), new Button(), new Button()
         };
+        private readonly CheckBox[] alarmEnableChecks =
+        {
+            new CheckBox(), new CheckBox(), new CheckBox()
+        };
+        private readonly Button[] alarmSwitchButtons =
+        {
+            new Button(), new Button(), new Button()
+        };
+        private readonly TabControl tabs = new TabControl();
+        private readonly TabPage temperaturePage = new TabPage("温度显示");
+        private readonly Label temperatureValueLabel = new Label();
+        private readonly Label temperatureUpdatedLabel = new Label();
+        private readonly CheckBox temperatureAutoCheck = new CheckBox();
+        private readonly Button temperatureRefreshButton = new Button();
         private readonly Timer clockTimer = new Timer();
         private readonly object serialLock = new object();
 
         private SerialPort serialPort;
         private bool busy;
+        private DateTime nextTemperaturePollUtc = DateTime.MinValue;
 
         public MainForm()
         {
@@ -69,7 +84,7 @@ namespace SerialTimeSync
             UpdatePcClock();
 
             clockTimer.Interval = 200;
-            clockTimer.Tick += delegate { UpdatePcClock(); };
+            clockTimer.Tick += ClockTimerTick;
             clockTimer.Start();
         }
 
@@ -105,7 +120,6 @@ namespace SerialTimeSync
                 "115200 · 8N1 · DTR/RTS 关闭", 470, 36, 155);
             settings.ForeColor = Color.DimGray;
 
-            TabControl tabs = new TabControl();
             tabs.Location = new Point(20, 168);
             tabs.Size = new Size(640, 260);
             Controls.Add(tabs);
@@ -114,8 +128,14 @@ namespace SerialTimeSync
             TabPage alarmPage = new TabPage("闹钟设置");
             timePage.BackColor = SystemColors.Control;
             alarmPage.BackColor = SystemColors.Control;
+            temperaturePage.BackColor = SystemColors.Control;
             tabs.TabPages.Add(timePage);
             tabs.TabPages.Add(alarmPage);
+            tabs.TabPages.Add(temperaturePage);
+            tabs.SelectedIndexChanged += delegate
+            {
+                nextTemperaturePollUtc = DateTime.MinValue;
+            };
 
             GroupBox autoGroup = CreateGroup(timePage, "自动校准", 10, 8, 610, 92);
             pcClockLabel.Font = new Font("Consolas", 17F, FontStyle.Bold);
@@ -157,7 +177,7 @@ namespace SerialTimeSync
             manualGroup.Controls.Add(manualSyncButton);
 
             Label alarmHelp = AddLabel(alarmPage,
-                "分别设置三组闹钟的时间与音乐；串口写入不会自动试听。",
+                "时间/音乐与开关分别写入；勾选状态不是设备读回值。",
                 14, 12, 590);
             alarmHelp.ForeColor = Color.DimGray;
 
@@ -165,6 +185,44 @@ namespace SerialTimeSync
             BuildAlarmRow(alarmGroup, 0, 30, 8, 0);
             BuildAlarmRow(alarmGroup, 1, 75, 12, 0);
             BuildAlarmRow(alarmGroup, 2, 120, 16, 0);
+
+            Label temperatureHelp = AddLabel(temperaturePage,
+                "读取单片机板载热敏电阻测得的室温（精确到 0.1°C）。",
+                18, 18, 590);
+            temperatureHelp.ForeColor = Color.DimGray;
+
+            temperatureValueLabel.Text = "--.- °C";
+            temperatureValueLabel.Font = new Font("Consolas", 42F, FontStyle.Bold);
+            temperatureValueLabel.TextAlign = ContentAlignment.MiddleCenter;
+            temperatureValueLabel.Location = new Point(30, 55);
+            temperatureValueLabel.Size = new Size(550, 90);
+            temperaturePage.Controls.Add(temperatureValueLabel);
+
+            temperatureUpdatedLabel.Text = "等待连接后读取";
+            temperatureUpdatedLabel.TextAlign = ContentAlignment.MiddleCenter;
+            temperatureUpdatedLabel.Location = new Point(30, 145);
+            temperatureUpdatedLabel.Size = new Size(550, 28);
+            temperatureUpdatedLabel.ForeColor = Color.DimGray;
+            temperaturePage.Controls.Add(temperatureUpdatedLabel);
+
+            temperatureAutoCheck.Text = "每秒自动刷新";
+            temperatureAutoCheck.Checked = true;
+            temperatureAutoCheck.Location = new Point(140, 182);
+            temperatureAutoCheck.Size = new Size(145, 30);
+            temperatureAutoCheck.CheckedChanged += delegate
+            {
+                nextTemperaturePollUtc = DateTime.MinValue;
+            };
+            temperaturePage.Controls.Add(temperatureAutoCheck);
+
+            temperatureRefreshButton.Text = "立即读取";
+            temperatureRefreshButton.Location = new Point(322, 179);
+            temperatureRefreshButton.Size = new Size(130, 36);
+            temperatureRefreshButton.Click += async delegate
+            {
+                await ReadTemperatureAsync(true);
+            };
+            temperaturePage.Controls.Add(temperatureRefreshButton);
 
             statusLabel.Text = "尚未连接";
             statusLabel.AutoSize = false;
@@ -225,18 +283,33 @@ namespace SerialTimeSync
             music.DropDownStyle = ComboBoxStyle.DropDownList;
             music.Items.AddRange(MelodyNames);
             music.SelectedIndex = index;
-            music.Location = new Point(255, y);
-            music.Size = new Size(210, 30);
+            music.Location = new Point(248, y);
+            music.Size = new Size(170, 30);
             music.DropDownWidth = 260;
             parent.Controls.Add(music);
 
+            CheckBox enabled = alarmEnableChecks[index];
+            enabled.Text = "启用";
+            enabled.Checked = true;
+            enabled.Location = new Point(425, y + 2);
+            enabled.Size = new Size(58, 28);
+            parent.Controls.Add(enabled);
+
             Button button = alarmSyncButtons[index];
-            button.Text = "写入闹钟 " + (index + 1);
+            button.Text = "写时间";
             button.Tag = index;
-            button.Location = new Point(475, y - 2);
-            button.Size = new Size(105, 34);
+            button.Location = new Point(484, y - 2);
+            button.Size = new Size(58, 34);
             button.Click += AlarmSyncButtonClick;
             parent.Controls.Add(button);
+
+            Button switchButton = alarmSwitchButtons[index];
+            switchButton.Text = "写开关";
+            switchButton.Tag = index;
+            switchButton.Location = new Point(546, y - 2);
+            switchButton.Size = new Size(58, 34);
+            switchButton.Click += AlarmSwitchButtonClick;
+            parent.Controls.Add(switchButton);
         }
 
         private static Label AddLabel(Control parent, string text, int x, int y,
@@ -314,7 +387,8 @@ namespace SerialTimeSync
                 serialPort.DiscardInBuffer();
                 serialPort.DiscardOutBuffer();
                 statusLabel.Text = "已连接 " + serialPort.PortName +
-                    "，可以同步时间或设置闹钟";
+                    "，可以同步时间、设置闹钟或读取温度";
+                nextTemperaturePollUtc = DateTime.MinValue;
                 AppendLog("串口已连接，DTR/RTS 已关闭，启动等待完成。",
                     Color.DarkGreen);
             }
@@ -355,6 +429,114 @@ namespace SerialTimeSync
             string value = String.Format("闹钟 {0} = {1:00}:{2:00}，{3}",
                 index + 1, hour, minute, MelodyNames[melody]);
             await SendFrameAsync(frame, "修改闹钟", value);
+        }
+
+        private async void AlarmSwitchButtonClick(object sender, EventArgs e)
+        {
+            Button button = (Button)sender;
+            int index = (int)button.Tag;
+            bool enabled = alarmEnableChecks[index].Checked;
+            byte[] frame = BuildAlarmSwitchFrame(index, enabled);
+            string value = String.Format("闹钟 {0} {1}", index + 1,
+                enabled ? "启用" : "关闭");
+            await SendFrameAsync(frame, "设置闹钟开关", value);
+        }
+
+        private async void ClockTimerTick(object sender, EventArgs e)
+        {
+            UpdatePcClock();
+            if (tabs.SelectedTab == temperaturePage && IsConnected && !busy &&
+                temperatureAutoCheck.Checked &&
+                DateTime.UtcNow >= nextTemperaturePollUtc)
+            {
+                nextTemperaturePollUtc = DateTime.UtcNow.AddSeconds(1);
+                await ReadTemperatureAsync(false);
+            }
+        }
+
+        private async Task ReadTemperatureAsync(bool manual)
+        {
+            if (!IsConnected)
+            {
+                if (manual)
+                    MessageBox.Show("请先连接串口。", "尚未连接",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (busy) return;
+
+            SetBusy(true);
+            temperatureUpdatedLabel.Text = "正在读取…";
+            try
+            {
+                byte[] reply = await Task.Run(delegate
+                {
+                    lock (serialLock)
+                    {
+                        byte[] request = BuildTemperatureRequest();
+                        serialPort.DiscardInBuffer();
+                        serialPort.Write(request, 0, request.Length);
+                        byte[] response = new byte[4];
+                        Stopwatch stopwatch = Stopwatch.StartNew();
+                        for (int i = 0; i < response.Length; i++)
+                        {
+                            int remaining = 1800 - (int)stopwatch.ElapsedMilliseconds;
+                            if (remaining <= 0)
+                                throw new TimeoutException("温度查询超时");
+                            serialPort.ReadTimeout = remaining;
+                            response[i] = (byte)serialPort.ReadByte();
+                        }
+                        return response;
+                    }
+                });
+
+                if (reply[0] != 0x05 || reply[1] > 99 ||
+                    reply[2] > 9 || reply[3] != FrameTail)
+                    throw new FormatException("单片机返回了无效温度帧");
+
+                temperatureValueLabel.Text = String.Format("{0}.{1} °C",
+                    reply[1], reply[2]);
+                temperatureUpdatedLabel.Text = "最近读取：" +
+                    DateTime.Now.ToString("HH:mm:ss");
+                statusLabel.Text = "温度读取成功：" + temperatureValueLabel.Text;
+                if (manual)
+                    AppendLog(DateTime.Now.ToString("HH:mm:ss") +
+                        "  TX  05 AA  RX  " +
+                        BitConverter.ToString(reply).Replace('-', ' '),
+                        Color.DarkGreen);
+            }
+            catch (TimeoutException ex)
+            {
+                temperatureAutoCheck.Checked = false;
+                temperatureUpdatedLabel.Text = "读取超时，请确认已烧录最新 HEX";
+                statusLabel.Text = "温度读取失败：" + ex.Message;
+                AppendLog(DateTime.Now.ToString("HH:mm:ss") + "  " + ex.Message,
+                    Color.DarkRed);
+                if (manual)
+                    MessageBox.Show("没有收到温度数据，请确认已烧录最新 HEX。",
+                        "读取失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (FormatException ex)
+            {
+                temperatureAutoCheck.Checked = false;
+                temperatureUpdatedLabel.Text = "返回的数据格式不正确";
+                statusLabel.Text = "温度读取失败：" + ex.Message;
+                AppendLog(DateTime.Now.ToString("HH:mm:ss") + "  " + ex.Message,
+                    Color.DarkRed);
+            }
+            catch (Exception ex)
+            {
+                Disconnect();
+                temperatureUpdatedLabel.Text = "串口连接已断开";
+                statusLabel.Text = "温度读取失败：" + ex.Message;
+                AppendLog(DateTime.Now.ToString("HH:mm:ss") + "  ERROR  " +
+                    ex.Message, Color.DarkRed);
+            }
+            finally
+            {
+                nextTemperaturePollUtc = DateTime.UtcNow.AddSeconds(1);
+                SetBusy(false);
+            }
         }
 
         private async Task SendTimeAsync(int hour, int minute, int second,
@@ -448,6 +630,20 @@ namespace SerialTimeSync
             };
         }
 
+        private static byte[] BuildAlarmSwitchFrame(int index, bool enabled)
+        {
+            return new byte[]
+            {
+                0x04, (byte)(index + 1), enabled ? (byte)1 : (byte)0,
+                FrameTail
+            };
+        }
+
+        private static byte[] BuildTemperatureRequest()
+        {
+            return new byte[] { 0x05, FrameTail };
+        }
+
         private static byte ToBcd(int value)
         {
             return (byte)(((value / 10) << 4) | (value % 10));
@@ -488,6 +684,9 @@ namespace SerialTimeSync
             manualSyncButton.Enabled = connected && !busy;
             foreach (Button button in alarmSyncButtons)
                 button.Enabled = connected && !busy;
+            foreach (Button button in alarmSwitchButtons)
+                button.Enabled = connected && !busy;
+            temperatureRefreshButton.Enabled = connected && !busy;
         }
 
         private void Disconnect()
@@ -508,6 +707,8 @@ namespace SerialTimeSync
                 oldPort.Dispose();
             }
             statusLabel.Text = "串口已断开";
+            temperatureValueLabel.Text = "--.- °C";
+            temperatureUpdatedLabel.Text = "等待连接后读取";
             UpdateButtonState();
         }
 

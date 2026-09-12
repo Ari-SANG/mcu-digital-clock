@@ -46,19 +46,19 @@ static unsigned char code MelodyData[] =
     NOTE_C6,4, NOTE_C6,4, NOTE_B5,8, NOTE_FS5,8,
     NOTE_FS5,4, NOTE_B5,8, NOTE_B5,12, NOTE_REST,4,
 
-    /* 2: Counter-clockwise Clock, recognizable intro excerpt. */
-    NOTE_A5,6, NOTE_G5,6, NOTE_E5,6, NOTE_D5,6,
-    NOTE_G5,6, NOTE_A5,6, NOTE_G5,12, NOTE_A5,6,
-    NOTE_D5,6, NOTE_E5,6, NOTE_G5,6, NOTE_A5,18,
-    NOTE_A5,6, NOTE_G5,6, NOTE_E5,6, NOTE_D5,6,
-    NOTE_G5,6, NOTE_A5,6, NOTE_G5,12, NOTE_A5,6,
-    NOTE_D5,6, NOTE_E5,6, NOTE_G5,6, NOTE_A5,18,
+    /* 2: JJ Lin's Cao Cao, opening of the chorus, transposed to C. */
+    NOTE_C6,8, NOTE_B5,4, NOTE_A5,4, NOTE_A5,4,
+    NOTE_E5,12, NOTE_G5,4, NOTE_A5,8, NOTE_F5,8,
+    NOTE_F5,8, NOTE_E5,4,
+    NOTE_D5,8, NOTE_E5,8, NOTE_F5,8, NOTE_F5,8,
+    NOTE_G5,8, NOTE_E5,8, NOTE_E5,4, NOTE_F5,4,
+    NOTE_E5,4, NOTE_D5,4,
     NOTE_REST,4
 };
 
 static unsigned char code MelodyOffsets[4] =
 {
-    0U, 64U, 118U, 168U
+    0U, 64U, 118U, 160U
 };
 
 static unsigned int code ToneReloads[10] =

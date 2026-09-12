@@ -50,7 +50,10 @@ void App_Service(void)
     unsigned char data second;
     unsigned char data alarm_index;
     unsigned char data alarm_melody;
+    unsigned char data alarm_enabled;
     unsigned char data second_event;
+    unsigned char data temperature_decimal;
+    unsigned char data temperature_whole;
 
     if (Uart1_TakeTime(&hour, &minute, &second))
     {
@@ -80,15 +83,25 @@ void App_Service(void)
         App_Render();
     }
 
+    if (Uart1_TakeAlarmSwitch(&alarm_index, &alarm_enabled))
+    {
+        Board_SetAlarmEnabled(alarm_index, alarm_enabled);
+        Settings_RequestSave();
+    }
+
+    if (Uart1_TakeTemperatureRequest())
+    {
+        temperature_whole = Board_ReadTemperature(&temperature_decimal);
+        Uart1_SendTemperature(temperature_whole, temperature_decimal);
+    }
+
     second_event = Board_TakeSecondEvent();
     if (second_event)
     {
         if ((DisplayState == STATE_CLOCK) && ClockTickEnabled)
             Board_StartClockTick();
 
-        if ((ClockSecond == 0U) &&
-            Board_IsAlarmTime(ClockHour, ClockMinute))
-            Board_StartAlarm();
+        Board_CheckAlarms();
     }
 }
 
@@ -137,7 +150,10 @@ static void App_HandleKeys(unsigned char events)
 {
     if (AlarmRinging)
     {
-        Board_StopAlarm();
+        if (events & KEY_EVENT_MODE)
+            Board_SnoozeAlarm();
+        else
+            Board_StopAlarm();
         return;
     }
 

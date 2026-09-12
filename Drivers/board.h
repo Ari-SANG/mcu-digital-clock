@@ -22,6 +22,7 @@ extern volatile unsigned char data ClockSecond;
 extern unsigned char data AlarmHours[3];
 extern unsigned char data AlarmMinutes[3];
 extern unsigned char data AlarmMelodies[3];
+extern unsigned char data AlarmEnabledMask;
 extern unsigned char data SelectedAlarm;
 extern volatile bit AlarmRinging;
 
@@ -38,8 +39,11 @@ void Board_AdjustClock(unsigned char field, unsigned char increase);
 void Board_AdjustAlarm(unsigned char field, unsigned char increase);
 void Board_SetAlarm(unsigned char index, unsigned char hour,
                     unsigned char minute, unsigned char melody);
+void Board_SetAlarmEnabled(unsigned char index, unsigned char enabled);
 void Board_SelectNextAlarm(void);
 bit Board_IsAlarmTime(unsigned char hour, unsigned char minute);
+void Board_CheckAlarms(void);
+void Board_SnoozeAlarm(void);
 void Board_StartClockTick(void);
 void Board_StartAlarm(void);
 void Board_StopAlarm(void);

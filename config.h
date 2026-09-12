@@ -11,6 +11,7 @@
 #define CLOCK_START_MINUTE      0U
 #define CLOCK_START_SECOND      0U
 #define ALARM_COUNT             3U
+#define ALARM_ENABLED_ALL       ((1U << ALARM_COUNT) - 1U)
 #define ALARM1_START_HOUR       8U
 #define ALARM1_START_MINUTE     0U
 #define ALARM2_START_HOUR       12U
@@ -31,5 +32,6 @@
 #define CLOCK_TICK_DEFAULT_ON   1U
 #define CLOCK_TICK_SOUND_MS     40U
 #define ALARM_RING_MS           30000U
+#define ALARM_SNOOZE_MINUTES    10U
 
 #endif

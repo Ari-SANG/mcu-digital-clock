@@ -27,6 +27,7 @@
 #define RECORD_MAGIC1          0x4BU
 #define RECORD_VERSION         1U
 #define RECORD_VALID_MARKER    0xA5U
+#define RECORD_ENABLED_TAG     0xA0U
 
 #define OFFSET_MAGIC0          0U
 #define OFFSET_MAGIC1          1U
@@ -142,6 +143,12 @@ static bit Settings_RecordFieldsValid(void)
         (RecordBuffer[OFFSET_CLOCK_SECOND] >= 60U))
         return 0;
 
+    /* Version 1 records used zero here and had all alarms enabled. */
+    if ((RecordBuffer[OFFSET_RESERVED] != 0U) &&
+        ((RecordBuffer[OFFSET_RESERVED] & ~ALARM_ENABLED_ALL) !=
+         RECORD_ENABLED_TAG))
+        return 0;
+
     for (index = 0; index < ALARM_COUNT; index++)
     {
         offset = OFFSET_ALARMS + index * 3U;
@@ -224,6 +231,9 @@ static void Settings_ApplyRecord(void)
     ClockHour = RecordBuffer[OFFSET_CLOCK_HOUR];
     ClockMinute = RecordBuffer[OFFSET_CLOCK_MINUTE];
     ClockSecond = RecordBuffer[OFFSET_CLOCK_SECOND];
+    AlarmEnabledMask = (RecordBuffer[OFFSET_RESERVED] == 0U) ?
+                       ALARM_ENABLED_ALL :
+                       (RecordBuffer[OFFSET_RESERVED] & ALARM_ENABLED_ALL);
     for (index = 0; index < ALARM_COUNT; index++)
     {
         offset = OFFSET_ALARMS + index * 3U;
@@ -242,7 +252,8 @@ static void Settings_BuildRecord(unsigned int sequence)
     RecordBuffer[OFFSET_MAGIC0] = RECORD_MAGIC0;
     RecordBuffer[OFFSET_MAGIC1] = RECORD_MAGIC1;
     RecordBuffer[OFFSET_VERSION] = RECORD_VERSION;
-    RecordBuffer[OFFSET_RESERVED] = 0;
+    RecordBuffer[OFFSET_RESERVED] = RECORD_ENABLED_TAG |
+                                    AlarmEnabledMask;
     RecordBuffer[OFFSET_SEQUENCE_LOW] = (unsigned char)sequence;
     RecordBuffer[OFFSET_SEQUENCE_HIGH] = (unsigned char)(sequence >> 8);
 

@@ -71,3 +71,8 @@ unsigned char Keys_Scan10ms(void)
     }
     return events;
 }
+
+bit Keys_AnyPressed(void)
+{
+    return KeyStable != 0U;
+}

@@ -1,4 +1,4 @@
-/* UART1 command parser and interrupt-driven temperature reply. */
+/* UART1 command parser and temperature reply. */
 
 #include <STC15.H>
 #include "config.h"
@@ -20,10 +20,26 @@ static volatile bit NewAlarmReady;
 static volatile unsigned char data NewSwitchIndex;
 static volatile unsigned char data NewSwitchEnabled;
 static volatile bit NewSwitchReady;
+static volatile unsigned char data NewScreenEnabled;
+static volatile bit NewScreenReady;
 static volatile bit NewTemperatureRequest;
-static volatile unsigned char data TxTemperatureWhole;
-static volatile unsigned char data TxTemperatureDecimal;
-static volatile unsigned char data TxState;
+
+#define UART_TX_TIMEOUT 50000U
+
+static bit Uart1_SendByte(unsigned char value)
+{
+    unsigned int data remaining;
+
+    remaining = UART_TX_TIMEOUT;
+    TI = 0;
+    SBUF = value;
+    while (!TI)
+    {
+        if (--remaining == 0U) return 0;
+    }
+    TI = 0;
+    return 1;
+}
 
 static bit Uart1_BcdValid(unsigned char value)
 {
@@ -36,8 +52,8 @@ void Uart1_Init(void)
     NewTimeReady = 0;
     NewAlarmReady = 0;
     NewSwitchReady = 0;
+    NewScreenReady = 0;
     NewTemperatureRequest = 0;
-    TxState = 0;
     SCON = 0x50;
     AUXR |= 0x01;
     AUXR |= 0x04;
@@ -75,9 +91,19 @@ bit Uart1_TakeAlarmSwitch(unsigned char data *index,
     return 1;
 }
 
+bit Uart1_TakeScreenSwitch(unsigned char data *enabled)
+{
+    if (!NewScreenReady) return 0;
+    EA = 0;
+    *enabled = NewScreenEnabled;
+    NewScreenReady = 0;
+    EA = 1;
+    return 1;
+}
+
 bit Uart1_TakeTemperatureRequest(void)
 {
-    if (!NewTemperatureRequest || (TxState != 0U)) return 0;
+    if (!NewTemperatureRequest) return 0;
     EA = 0;
     NewTemperatureRequest = 0;
     EA = 1;
@@ -86,12 +112,14 @@ bit Uart1_TakeTemperatureRequest(void)
 
 void Uart1_SendTemperature(unsigned char whole, unsigned char decimal)
 {
-    EA = 0;
-    TxTemperatureWhole = whole;
-    TxTemperatureDecimal = decimal;
-    TxState = 1U;
-    SBUF = 0x05U;
-    EA = 1;
+    /* A four-byte reply takes less than 1 ms. Keep Timer1 running, but
+       prevent the UART ISR from clearing TI between polling iterations. */
+    ES = 0;
+    if (Uart1_SendByte(0x05U) &&
+        Uart1_SendByte(whole) &&
+        Uart1_SendByte(decimal))
+        Uart1_SendByte(0xAAU);
+    ES = 1;
 }
 
 bit Uart1_TakeTime(unsigned char data *hour,
@@ -121,7 +149,7 @@ void Uart1_Isr(void) interrupt 4 using 2
         value = SBUF;
         if (RxState == 0U)
         {
-            if ((value >= 0x01U) && (value <= 0x05U))
+            if ((value >= 0x01U) && (value <= 0x06U))
             {
                 RxCommand = value;
                 RxState = 1U;
@@ -132,8 +160,9 @@ void Uart1_Isr(void) interrupt 4 using 2
             RxState = 0;
             if (value == 0xAAU) NewTemperatureRequest = 1;
         }
-        else if (RxState <= ((RxCommand == 0x04U) ? 2U :
-                            ((RxCommand == 0x03U) ? 4U : 3U)))
+        else if (RxState <= ((RxCommand == 0x06U) ? 1U :
+                            ((RxCommand == 0x04U) ? 2U :
+                            ((RxCommand == 0x03U) ? 4U : 3U))))
         {
             RxData[RxState - 1U] = value;
             RxState++;
@@ -202,27 +231,14 @@ void Uart1_Isr(void) interrupt 4 using 2
                 NewSwitchReady = 1;
                 SBUF = 0x06U;
             }
+            else if ((value == 0xAAU) && (RxCommand == 0x06U) &&
+                     (RxData[0] <= 1U))
+            {
+                NewScreenEnabled = RxData[0];
+                NewScreenReady = 1;
+                SBUF = 0x06U;
+            }
         }
     }
-    if (TI)
-    {
-        TI = 0;
-        if (TxState == 1U)
-        {
-            TxState = 2U;
-            SBUF = TxTemperatureWhole;
-        }
-        else if (TxState == 2U)
-        {
-            TxState = 3U;
-            SBUF = TxTemperatureDecimal;
-        }
-        else if (TxState == 3U)
-        {
-            TxState = 4U;
-            SBUF = 0xAAU;
-        }
-        else
-            TxState = 0;
-    }
+    if (TI) TI = 0;
 }

@@ -28,6 +28,8 @@
 #define RECORD_VERSION         1U
 #define RECORD_VALID_MARKER    0xA5U
 #define RECORD_ENABLED_TAG     0xA0U
+#define RECORD_SCREEN_TAG      0xB0U
+#define RECORD_SCREEN_BIT      0x08U
 
 #define OFFSET_MAGIC0          0U
 #define OFFSET_MAGIC1          1U
@@ -137,16 +139,19 @@ static bit Settings_RecordFieldsValid(void)
 {
     unsigned char data index;
     unsigned char data offset;
+    unsigned char data flags;
 
     if ((RecordBuffer[OFFSET_CLOCK_HOUR] >= 24U) ||
         (RecordBuffer[OFFSET_CLOCK_MINUTE] >= 60U) ||
         (RecordBuffer[OFFSET_CLOCK_SECOND] >= 60U))
         return 0;
 
-    /* Version 1 records used zero here and had all alarms enabled. */
-    if ((RecordBuffer[OFFSET_RESERVED] != 0U) &&
-        ((RecordBuffer[OFFSET_RESERVED] & ~ALARM_ENABLED_ALL) !=
-         RECORD_ENABLED_TAG))
+    /* Accept the original zero byte and the earlier alarm-only flag byte. */
+    flags = RecordBuffer[OFFSET_RESERVED];
+    if ((flags != 0U) &&
+        ((flags & ~ALARM_ENABLED_ALL) != RECORD_ENABLED_TAG) &&
+        ((flags & ~(ALARM_ENABLED_ALL | RECORD_SCREEN_BIT)) !=
+         RECORD_SCREEN_TAG))
         return 0;
 
     for (index = 0; index < ALARM_COUNT; index++)
@@ -234,6 +239,10 @@ static void Settings_ApplyRecord(void)
     AlarmEnabledMask = (RecordBuffer[OFFSET_RESERVED] == 0U) ?
                        ALARM_ENABLED_ALL :
                        (RecordBuffer[OFFSET_RESERVED] & ALARM_ENABLED_ALL);
+    ScreenAutoOffEnabled =
+        ((RecordBuffer[OFFSET_RESERVED] & 0xF0U) == RECORD_SCREEN_TAG) ?
+        ((RecordBuffer[OFFSET_RESERVED] & RECORD_SCREEN_BIT) != 0U) :
+        SCREEN_AUTO_OFF_DEFAULT;
     for (index = 0; index < ALARM_COUNT; index++)
     {
         offset = OFFSET_ALARMS + index * 3U;
@@ -252,7 +261,8 @@ static void Settings_BuildRecord(unsigned int sequence)
     RecordBuffer[OFFSET_MAGIC0] = RECORD_MAGIC0;
     RecordBuffer[OFFSET_MAGIC1] = RECORD_MAGIC1;
     RecordBuffer[OFFSET_VERSION] = RECORD_VERSION;
-    RecordBuffer[OFFSET_RESERVED] = RECORD_ENABLED_TAG |
+    RecordBuffer[OFFSET_RESERVED] = RECORD_SCREEN_TAG |
+                                    (ScreenAutoOffEnabled ? RECORD_SCREEN_BIT : 0U) |
                                     AlarmEnabledMask;
     RecordBuffer[OFFSET_SEQUENCE_LOW] = (unsigned char)sequence;
     RecordBuffer[OFFSET_SEQUENCE_HIGH] = (unsigned char)(sequence >> 8);

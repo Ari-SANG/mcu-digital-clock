@@ -58,6 +58,9 @@ namespace SerialTimeSync
         };
         private readonly TabControl tabs = new TabControl();
         private readonly TabPage temperaturePage = new TabPage("温度显示");
+        private readonly TabPage screenPage = new TabPage("息屏设置");
+        private readonly CheckBox screenAutoOffCheck = new CheckBox();
+        private readonly Button screenSaveButton = new Button();
         private readonly Label temperatureValueLabel = new Label();
         private readonly Label temperatureUpdatedLabel = new Label();
         private readonly CheckBox temperatureAutoCheck = new CheckBox();
@@ -72,6 +75,7 @@ namespace SerialTimeSync
         public MainForm()
         {
             Text = "单片机串口控制助手";
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             ClientSize = new Size(680, 560);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -129,9 +133,11 @@ namespace SerialTimeSync
             timePage.BackColor = SystemColors.Control;
             alarmPage.BackColor = SystemColors.Control;
             temperaturePage.BackColor = SystemColors.Control;
+            screenPage.BackColor = SystemColors.Control;
             tabs.TabPages.Add(timePage);
             tabs.TabPages.Add(alarmPage);
             tabs.TabPages.Add(temperaturePage);
+            tabs.TabPages.Add(screenPage);
             tabs.SelectedIndexChanged += delegate
             {
                 nextTemperaturePollUtc = DateTime.MinValue;
@@ -223,6 +229,32 @@ namespace SerialTimeSync
                 await ReadTemperatureAsync(true);
             };
             temperaturePage.Controls.Add(temperatureRefreshButton);
+
+            Label screenHelp = AddLabel(screenPage,
+                "连续 60 秒没有按键时关闭数码管；时钟、闹钟和串口继续运行。",
+                18, 20, 590);
+            screenHelp.ForeColor = Color.DimGray;
+
+            screenAutoOffCheck.Text = "启用自动息屏";
+            screenAutoOffCheck.Checked = true;
+            screenAutoOffCheck.Location = new Point(88, 84);
+            screenAutoOffCheck.Size = new Size(180, 35);
+            screenPage.Controls.Add(screenAutoOffCheck);
+
+            screenSaveButton.Text = "写入单片机";
+            screenSaveButton.Location = new Point(340, 81);
+            screenSaveButton.Size = new Size(170, 42);
+            screenSaveButton.Click += ScreenSaveButtonClick;
+            screenPage.Controls.Add(screenSaveButton);
+
+            Label screenNote = AddLabel(screenPage,
+                "按键先唤醒屏幕；闹钟响起也会亮屏。开关状态断电保存。",
+                18, 145, 590);
+            screenNote.ForeColor = Color.DimGray;
+            Label screenPending = AddLabel(screenPage,
+                "勾选框是待写入值，不代表从单片机读回的当前状态。",
+                18, 180, 590);
+            screenPending.ForeColor = Color.DimGray;
 
             statusLabel.Text = "尚未连接";
             statusLabel.AutoSize = false;
@@ -442,6 +474,13 @@ namespace SerialTimeSync
             await SendFrameAsync(frame, "设置闹钟开关", value);
         }
 
+        private async void ScreenSaveButtonClick(object sender, EventArgs e)
+        {
+            bool enabled = screenAutoOffCheck.Checked;
+            await SendFrameAsync(BuildScreenFrame(enabled), "设置自动息屏",
+                enabled ? "启用（60 秒无按键后息屏）" : "关闭");
+        }
+
         private async void ClockTimerTick(object sender, EventArgs e)
         {
             UpdatePcClock();
@@ -467,6 +506,8 @@ namespace SerialTimeSync
 
             SetBusy(true);
             temperatureUpdatedLabel.Text = "正在读取…";
+            byte[] response = new byte[4];
+            int receivedBytes = 0;
             try
             {
                 byte[] reply = await Task.Run(delegate
@@ -476,7 +517,6 @@ namespace SerialTimeSync
                         byte[] request = BuildTemperatureRequest();
                         serialPort.DiscardInBuffer();
                         serialPort.Write(request, 0, request.Length);
-                        byte[] response = new byte[4];
                         Stopwatch stopwatch = Stopwatch.StartNew();
                         for (int i = 0; i < response.Length; i++)
                         {
@@ -485,11 +525,15 @@ namespace SerialTimeSync
                                 throw new TimeoutException("温度查询超时");
                             serialPort.ReadTimeout = remaining;
                             response[i] = (byte)serialPort.ReadByte();
+                            receivedBytes++;
                         }
                         return response;
                     }
                 });
 
+                if (reply[0] == 0x05 && reply[1] == 0xFF &&
+                    reply[2] == 0xFF && reply[3] == FrameTail)
+                    throw new FormatException("单片机 ADC 采样超时");
                 if (reply[0] != 0x05 || reply[1] > 99 ||
                     reply[2] > 9 || reply[3] != FrameTail)
                     throw new FormatException("单片机返回了无效温度帧");
@@ -508,20 +552,28 @@ namespace SerialTimeSync
             catch (TimeoutException ex)
             {
                 temperatureAutoCheck.Checked = false;
-                temperatureUpdatedLabel.Text = "读取超时，请确认已烧录最新 HEX";
-                statusLabel.Text = "温度读取失败：" + ex.Message;
-                AppendLog(DateTime.Now.ToString("HH:mm:ss") + "  " + ex.Message,
+                string received = receivedBytes == 0 ? "无返回字节" :
+                    BitConverter.ToString(response, 0, receivedBytes).Replace('-', ' ');
+                temperatureUpdatedLabel.Text = receivedBytes == 0 ?
+                    "单片机未回复；请确认已烧录支持温度查询的 HEX" :
+                    "温度回包不完整（已收到 " + receivedBytes + " 字节）";
+                statusLabel.Text = "温度读取失败：" + temperatureUpdatedLabel.Text;
+                AppendLog(DateTime.Now.ToString("HH:mm:ss") +
+                    "  TX  05 AA  RX  " + received + "  " + ex.Message,
                     Color.DarkRed);
                 if (manual)
-                    MessageBox.Show("没有收到温度数据，请确认已烧录最新 HEX。",
+                    MessageBox.Show(temperatureUpdatedLabel.Text + "。",
                         "读取失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (FormatException ex)
             {
                 temperatureAutoCheck.Checked = false;
-                temperatureUpdatedLabel.Text = "返回的数据格式不正确";
+                temperatureUpdatedLabel.Text = ex.Message;
                 statusLabel.Text = "温度读取失败：" + ex.Message;
-                AppendLog(DateTime.Now.ToString("HH:mm:ss") + "  " + ex.Message,
+                AppendLog(DateTime.Now.ToString("HH:mm:ss") +
+                    "  TX  05 AA  RX  " +
+                    BitConverter.ToString(response).Replace('-', ' ') +
+                    "  " + ex.Message,
                     Color.DarkRed);
             }
             catch (Exception ex)
@@ -644,6 +696,11 @@ namespace SerialTimeSync
             return new byte[] { 0x05, FrameTail };
         }
 
+        private static byte[] BuildScreenFrame(bool enabled)
+        {
+            return new byte[] { 0x06, enabled ? (byte)1 : (byte)0, FrameTail };
+        }
+
         private static byte ToBcd(int value)
         {
             return (byte)(((value / 10) << 4) | (value % 10));
@@ -687,6 +744,7 @@ namespace SerialTimeSync
             foreach (Button button in alarmSwitchButtons)
                 button.Enabled = connected && !busy;
             temperatureRefreshButton.Enabled = connected && !busy;
+            screenSaveButton.Enabled = connected && !busy;
         }
 
         private void Disconnect()

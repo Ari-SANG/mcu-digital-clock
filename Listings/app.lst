@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 14:22:22 PAGE 1   
+C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 16:20:54 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE APP
@@ -34,324 +34,392 @@ line level    source
   24          static unsigned char data StudentPos;
   25          static bit ClockTickEnabled;
   26          static bit TemperaturePage;
-  27          static unsigned int data UiTicks;
-  28          static unsigned int data ClockTemperatureTicks;
-  29          
-  30          static void App_Render(void);
-  31          static void App_HandleKeys(unsigned char events);
+  27          static bit ScreenSleeping;
+  28          static bit WakeKeyHeld;
+  29          static unsigned int data UiTicks;
+  30          static unsigned int data ClockTemperatureTicks;
+  31          static unsigned int data InactivityTicks;
   32          
-  33          void App_Init(void)
-  34          {
-  35   1          DisplayState = STATE_CLOCK;
-  36   1          EditItem = FIELD_NONE;
-  37   1          ClockPage = 0;
-  38   1          StudentPos = 0;
-  39   1          ClockTickEnabled = CLOCK_TICK_DEFAULT_ON;
-  40   1          TemperaturePage = 0;
+  33          static void App_Render(void);
+  34          static void App_HandleKeys(unsigned char events);
+  35          static void App_WakeScreen(void);
+  36          
+  37          static void App_WakeScreen(void)
+  38          {
+  39   1          ScreenSleeping = 0;
+  40   1          InactivityTicks = 0;
   41   1          UiTicks = 0;
   42   1          ClockTemperatureTicks = 0;
-  43   1          App_Render();
-  44   1      }
-  45          
-  46          void App_Service(void)
-  47          {
-  48   1          unsigned char data hour;
-  49   1          unsigned char data minute;
-  50   1          unsigned char data second;
-  51   1          unsigned char data alarm_index;
-  52   1          unsigned char data alarm_melody;
-  53   1          unsigned char data alarm_enabled;
-  54   1          unsigned char data second_event;
-C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 14:22:22 PAGE 2   
+  43   1          TemperaturePage = 0;
+  44   1          ClockPage = 0;
+  45   1          Board_SetDisplayEnabled(1);
+  46   1      }
+  47          
+  48          void App_Init(void)
+  49          {
+  50   1          DisplayState = STATE_CLOCK;
+  51   1          EditItem = FIELD_NONE;
+  52   1          ClockPage = 0;
+  53   1          StudentPos = 0;
+  54   1          ClockTickEnabled = CLOCK_TICK_DEFAULT_ON;
+C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 16:20:54 PAGE 2   
 
-  55   1          unsigned char data temperature_decimal;
-  56   1          unsigned char data temperature_whole;
-  57   1      
-  58   1          if (Uart1_TakeTime(&hour, &minute, &second))
-  59   1          {
-  60   2              if (!AlarmRinging) Music_Stop();
-  61   2              Board_SetTime(hour, minute, second);
-  62   2              Settings_RequestSave();
-  63   2              DisplayState = STATE_CLOCK;
-  64   2              EditItem = FIELD_NONE;
-  65   2              ClockPage = 0;
-  66   2              TemperaturePage = 0;
-  67   2              UiTicks = 0;
-  68   2              ClockTemperatureTicks = 0;
-  69   2              App_Render();
-  70   2          }
-  71   1      
-  72   1          if (Uart1_TakeAlarm(&alarm_index, &hour, &minute, &alarm_melody))
-  73   1          {
-  74   2              if (!AlarmRinging) Music_Stop();
-  75   2              Board_SetAlarm(alarm_index, hour, minute, alarm_melody);
-  76   2              Settings_RequestSave();
-  77   2              DisplayState = STATE_ALARM;
-  78   2              EditItem = FIELD_NONE;
-  79   2              ClockPage = 0;
-  80   2              TemperaturePage = 0;
-  81   2              UiTicks = 0;
-  82   2              ClockTemperatureTicks = 0;
-  83   2              App_Render();
-  84   2          }
-  85   1      
-  86   1          if (Uart1_TakeAlarmSwitch(&alarm_index, &alarm_enabled))
-  87   1          {
-  88   2              Board_SetAlarmEnabled(alarm_index, alarm_enabled);
-  89   2              Settings_RequestSave();
-  90   2          }
-  91   1      
-  92   1          if (Uart1_TakeTemperatureRequest())
-  93   1          {
-  94   2              temperature_whole = Board_ReadTemperature(&temperature_decimal);
-  95   2              Uart1_SendTemperature(temperature_whole, temperature_decimal);
-  96   2          }
-  97   1      
-  98   1          second_event = Board_TakeSecondEvent();
-  99   1          if (second_event)
- 100   1          {
- 101   2              if ((DisplayState == STATE_CLOCK) && ClockTickEnabled)
- 102   2                  Board_StartClockTick();
- 103   2      
- 104   2              Board_CheckAlarms();
- 105   2          }
- 106   1      }
- 107          
- 108          void App_Tick10ms(unsigned char key_events)
- 109          {
- 110   1          if (key_events != KEY_EVENT_NONE)
- 111   1              App_HandleKeys(key_events);
- 112   1      
- 113   1          UiTicks++;
- 114   1          if ((DisplayState == STATE_CLOCK) && (EditItem == FIELD_NONE))
+  55   1          TemperaturePage = 0;
+  56   1          ScreenSleeping = 0;
+  57   1          WakeKeyHeld = 0;
+  58   1          UiTicks = 0;
+  59   1          ClockTemperatureTicks = 0;
+  60   1          InactivityTicks = 0;
+  61   1          Board_SetDisplayEnabled(1);
+  62   1          App_Render();
+  63   1      }
+  64          
+  65          void App_Service(void)
+  66          {
+  67   1          unsigned char data hour;
+  68   1          unsigned char data minute;
+  69   1          unsigned char data second;
+  70   1          unsigned char data alarm_index;
+  71   1          unsigned char data alarm_melody;
+  72   1          unsigned char data alarm_enabled;
+  73   1          unsigned char data screen_auto_off;
+  74   1          unsigned char data second_event;
+  75   1          unsigned char data temperature_decimal;
+  76   1          unsigned char data temperature_whole;
+  77   1      
+  78   1          if (Uart1_TakeTime(&hour, &minute, &second))
+  79   1          {
+  80   2              if (!AlarmRinging) Music_Stop();
+  81   2              Board_SetTime(hour, minute, second);
+  82   2              Settings_RequestSave();
+  83   2              DisplayState = STATE_CLOCK;
+  84   2              EditItem = FIELD_NONE;
+  85   2              App_WakeScreen();
+  86   2              App_Render();
+  87   2          }
+  88   1      
+  89   1          if (Uart1_TakeAlarm(&alarm_index, &hour, &minute, &alarm_melody))
+  90   1          {
+  91   2              if (!AlarmRinging) Music_Stop();
+  92   2              Board_SetAlarm(alarm_index, hour, minute, alarm_melody);
+  93   2              Settings_RequestSave();
+  94   2              DisplayState = STATE_ALARM;
+  95   2              EditItem = FIELD_NONE;
+  96   2              App_WakeScreen();
+  97   2              App_Render();
+  98   2          }
+  99   1      
+ 100   1          if (Uart1_TakeAlarmSwitch(&alarm_index, &alarm_enabled))
+ 101   1          {
+ 102   2              Board_SetAlarmEnabled(alarm_index, alarm_enabled);
+ 103   2              Settings_RequestSave();
+ 104   2          }
+ 105   1      
+ 106   1          if (Uart1_TakeScreenSwitch(&screen_auto_off))
+ 107   1          {
+ 108   2              ScreenAutoOffEnabled = screen_auto_off;
+ 109   2              App_WakeScreen();
+ 110   2              Settings_RequestSave();
+ 111   2              App_Render();
+ 112   2          }
+ 113   1      
+ 114   1          if (Uart1_TakeTemperatureRequest())
  115   1          {
- 116   2              if (++ClockTemperatureTicks >= CLOCK_TEMPERATURE_TICKS)
-C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 14:22:22 PAGE 3   
+ 116   2              temperature_whole = Board_ReadTemperature(&temperature_decimal);
+C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 16:20:54 PAGE 3   
 
- 117   2              {
- 118   3                  ClockTemperatureTicks = 0;
- 119   3                  TemperaturePage = !TemperaturePage;
- 120   3                  ClockPage = 0;
- 121   3                  UiTicks = 0;
- 122   3              }
- 123   2          }
- 124   1          else
- 125   1          {
- 126   2              ClockTemperatureTicks = 0;
- 127   2              TemperaturePage = 0;
- 128   2          }
- 129   1      
- 130   1          if ((DisplayState == STATE_STUDENT) &&
- 131   1              ((StudentPos & STUDENT_FIXED_FLAG) == 0U) &&
- 132   1              (UiTicks >= STUDENT_SCROLL_TICKS))
- 133   1          {
- 134   2              UiTicks = 0;
- 135   2              if (++StudentPos > STUDENT_FIXED_POS) StudentPos = 0;
- 136   2          }
- 137   1          else if ((DisplayState == STATE_CLOCK) &&
- 138   1                   (EditItem == FIELD_NONE) &&
- 139   1                   !TemperaturePage &&
- 140   1                   (UiTicks >= CLOCK_PAGE_TICKS))
- 141   1          {
- 142   2              UiTicks = 0;
- 143   2              ClockPage = !ClockPage;
- 144   2          }
- 145   1      
- 146   1          App_Render();
- 147   1      }
- 148          
- 149          static void App_HandleKeys(unsigned char events)
- 150          {
- 151   1          if (AlarmRinging)
- 152   1          {
- 153   2              if (events & KEY_EVENT_MODE)
- 154   2                  Board_SnoozeAlarm();
- 155   2              else
- 156   2                  Board_StopAlarm();
- 157   2              return;
- 158   2          }
- 159   1      
- 160   1          UiTicks = 0;
- 161   1          if (DisplayState == STATE_CLOCK)
- 162   1          {
- 163   2              ClockTemperatureTicks = 0;
- 164   2              TemperaturePage = 0;
- 165   2              ClockPage = 0;
- 166   2          }
- 167   1      
- 168   1          if (events & KEY_EVENT_MODE)
- 169   1          {
- 170   2              if (EditItem != FIELD_NONE)
- 171   2              {
- 172   3                  if ((DisplayState == STATE_CLOCK) && (EditItem < FIELD_SECOND))
- 173   3                      EditItem++;
- 174   3                  else if ((DisplayState == STATE_ALARM) && (EditItem < FIELD_MUSIC))
- 175   3                  {
- 176   4                      EditItem++;
- 177   4                      if (EditItem == FIELD_MUSIC)
- 178   4                          Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
-C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 14:22:22 PAGE 4   
+ 117   2              Uart1_SendTemperature(temperature_whole, temperature_decimal);
+ 118   2          }
+ 119   1      
+ 120   1          second_event = Board_TakeSecondEvent();
+ 121   1          if (second_event)
+ 122   1          {
+ 123   2              if ((DisplayState == STATE_CLOCK) && ClockTickEnabled)
+ 124   2                  Board_StartClockTick();
+ 125   2      
+ 126   2              Board_CheckAlarms();
+ 127   2              if (AlarmRinging && ScreenSleeping)
+ 128   2              {
+ 129   3                  App_WakeScreen();
+ 130   3                  App_Render();
+ 131   3              }
+ 132   2          }
+ 133   1      }
+ 134          
+ 135          void App_Tick10ms(unsigned char key_events)
+ 136          {
+ 137   1          bit pressed;
+ 138   1      
+ 139   1          pressed = Keys_AnyPressed();
+ 140   1          if (WakeKeyHeld && !pressed) WakeKeyHeld = 0;
+ 141   1      
+ 142   1          if (key_events != KEY_EVENT_NONE)
+ 143   1          {
+ 144   2              InactivityTicks = 0;
+ 145   2              if (ScreenSleeping)
+ 146   2              {
+ 147   3                  App_WakeScreen();
+ 148   3                  if (!AlarmRinging) WakeKeyHeld = 1;
+ 149   3                  else App_HandleKeys(key_events);
+ 150   3              }
+ 151   2              else if (!WakeKeyHeld)
+ 152   2                  App_HandleKeys(key_events);
+ 153   2          }
+ 154   1      
+ 155   1          if (AlarmRinging)
+ 156   1          {
+ 157   2              InactivityTicks = 0;
+ 158   2              if (ScreenSleeping) App_WakeScreen();
+ 159   2          }
+ 160   1          else if (!ScreenAutoOffEnabled)
+ 161   1              InactivityTicks = 0;
+ 162   1          else if (!ScreenSleeping)
+ 163   1          {
+ 164   2              if (pressed) InactivityTicks = 0;
+ 165   2              else if (++InactivityTicks >= SCREEN_OFF_TICKS)
+ 166   2              {
+ 167   3                  ScreenSleeping = 1;
+ 168   3                  Board_SetDisplayEnabled(0);
+ 169   3              }
+ 170   2          }
+ 171   1      
+ 172   1          if (ScreenSleeping) return;
+ 173   1      
+ 174   1          UiTicks++;
+ 175   1          if ((DisplayState == STATE_CLOCK) && (EditItem == FIELD_NONE))
+ 176   1          {
+ 177   2              if (++ClockTemperatureTicks >= CLOCK_TEMPERATURE_TICKS)
+ 178   2              {
+C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 16:20:54 PAGE 4   
 
- 179   4                  }
- 180   3                  else
- 181   3                  {
- 182   4                      Settings_RequestSave();
- 183   4                      EditItem = FIELD_NONE;
- 184   4                      Music_Stop();
- 185   4                  }
- 186   3              }
- 187   2              else
- 188   2              {
- 189   3                  if (++DisplayState > STATE_ALARM) DisplayState = STATE_CLOCK;
- 190   3                  if (DisplayState == STATE_STUDENT) StudentPos = 0;
- 191   3                  if (DisplayState == STATE_CLOCK)
- 192   3                  {
- 193   4                      ClockTemperatureTicks = 0;
- 194   4                      TemperaturePage = 0;
- 195   4                      ClockPage = 0;
- 196   4                  }
- 197   3              }
- 198   2              return;
- 199   2          }
- 200   1      
- 201   1          if (events & KEY_EVENT_MINUS)
+ 179   3                  ClockTemperatureTicks = 0;
+ 180   3                  TemperaturePage = !TemperaturePage;
+ 181   3                  ClockPage = 0;
+ 182   3                  UiTicks = 0;
+ 183   3              }
+ 184   2          }
+ 185   1          else
+ 186   1          {
+ 187   2              ClockTemperatureTicks = 0;
+ 188   2              TemperaturePage = 0;
+ 189   2          }
+ 190   1      
+ 191   1          if ((DisplayState == STATE_STUDENT) &&
+ 192   1              ((StudentPos & STUDENT_FIXED_FLAG) == 0U) &&
+ 193   1              (UiTicks >= STUDENT_SCROLL_TICKS))
+ 194   1          {
+ 195   2              UiTicks = 0;
+ 196   2              if (++StudentPos > STUDENT_FIXED_POS) StudentPos = 0;
+ 197   2          }
+ 198   1          else if ((DisplayState == STATE_CLOCK) &&
+ 199   1                   (EditItem == FIELD_NONE) &&
+ 200   1                   !TemperaturePage &&
+ 201   1                   (UiTicks >= CLOCK_PAGE_TICKS))
  202   1          {
- 203   2              if ((EditItem == FIELD_NONE) &&
- 204   2                  ((DisplayState == STATE_CLOCK) || (DisplayState == STATE_ALARM)))
- 205   2                  EditItem = FIELD_HOUR;
- 206   2              else if (EditItem != FIELD_NONE)
- 207   2              {
- 208   3                  if (DisplayState == STATE_CLOCK)
- 209   3                      Board_AdjustClock(EditItem, 0U);
- 210   3                  else
- 211   3                  {
- 212   4                      Board_AdjustAlarm(EditItem, 0U);
- 213   4                      if (EditItem == FIELD_MUSIC)
- 214   4                          Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
- 215   4                  }
- 216   3              }
- 217   2          }
- 218   1      
- 219   1          if ((events & KEY_EVENT_PLUS) && (EditItem == FIELD_NONE))
- 220   1          {
- 221   2              if (DisplayState == STATE_CLOCK)
- 222   2                  ClockTickEnabled = !ClockTickEnabled;
- 223   2              else if (DisplayState == STATE_STUDENT)
- 224   2              {
- 225   3                  if (StudentPos & STUDENT_FIXED_FLAG)
- 226   3                      StudentPos = 0;
- 227   3                  else
- 228   3                      StudentPos = STUDENT_FIXED_FLAG | STUDENT_FIXED_POS;
- 229   3              }
- 230   2              else if (DisplayState == STATE_ALARM)
- 231   2                  Board_SelectNextAlarm();
- 232   2          }
- 233   1          else if ((events & (KEY_EVENT_PLUS | KEY_EVENT_PLUS_REPEAT)) &&
- 234   1                   (EditItem != FIELD_NONE))
- 235   1          {
- 236   2              if (DisplayState == STATE_CLOCK)
- 237   2                  Board_AdjustClock(EditItem, 1U);
- 238   2              else
- 239   2              {
- 240   3                  Board_AdjustAlarm(EditItem, 1U);
-C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 14:22:22 PAGE 5   
+ 203   2              UiTicks = 0;
+ 204   2              ClockPage = !ClockPage;
+ 205   2          }
+ 206   1      
+ 207   1          App_Render();
+ 208   1      }
+ 209          
+ 210          static void App_HandleKeys(unsigned char events)
+ 211          {
+ 212   1          if (AlarmRinging)
+ 213   1          {
+ 214   2              if (events & KEY_EVENT_MODE)
+ 215   2                  Board_SnoozeAlarm();
+ 216   2              else
+ 217   2                  Board_StopAlarm();
+ 218   2              return;
+ 219   2          }
+ 220   1      
+ 221   1          UiTicks = 0;
+ 222   1          if (DisplayState == STATE_CLOCK)
+ 223   1          {
+ 224   2              ClockTemperatureTicks = 0;
+ 225   2              TemperaturePage = 0;
+ 226   2              ClockPage = 0;
+ 227   2          }
+ 228   1      
+ 229   1          if (events & KEY_EVENT_MODE)
+ 230   1          {
+ 231   2              if (EditItem != FIELD_NONE)
+ 232   2              {
+ 233   3                  if ((DisplayState == STATE_CLOCK) && (EditItem < FIELD_SECOND))
+ 234   3                      EditItem++;
+ 235   3                  else if ((DisplayState == STATE_ALARM) && (EditItem < FIELD_MUSIC))
+ 236   3                  {
+ 237   4                      EditItem++;
+ 238   4                      if (EditItem == FIELD_MUSIC)
+ 239   4                          Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
+ 240   4                  }
+C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 16:20:54 PAGE 5   
 
- 241   3                  if (EditItem == FIELD_MUSIC)
- 242   3                      Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
- 243   3              }
- 244   2          }
- 245   1      }
- 246          
- 247          static void App_Render(void)
- 248          {
- 249   1          unsigned char d0;
- 250   1          unsigned char d1;
- 251   1          unsigned char d2;
- 252   1          unsigned char d3;
- 253   1          unsigned char blink;
- 254   1          unsigned char colon;
- 255   1          unsigned char alarm_hour;
- 256   1          unsigned char alarm_minute;
- 257   1          unsigned char student_pos;
- 258   1          unsigned char temperature;
- 259   1          unsigned char temperature_decimal;
- 260   1      
- 261   1          blink = 0;
- 262   1          colon = COLON_ON;
- 263   1      
- 264   1          if (DisplayState == STATE_STUDENT)
- 265   1          {
- 266   2              student_pos = StudentPos & 0x7FU;
- 267   2              d0 = StudentId[student_pos] - '0';
- 268   2              d1 = StudentId[student_pos + 1U] - '0';
- 269   2              d2 = StudentId[student_pos + 2U] - '0';
- 270   2              d3 = StudentId[student_pos + 3U] - '0';
- 271   2              colon = COLON_OFF;
- 272   2          }
- 273   1          else if (DisplayState == STATE_CLOCK)
- 274   1          {
- 275   2              if (TemperaturePage && (EditItem == FIELD_NONE))
- 276   2              {
- 277   3                  temperature = Board_ReadTemperature(&temperature_decimal);
- 278   3                  d0 = temperature / 10U;
- 279   3                  d1 = temperature % 10U;
- 280   3                  d2 = temperature_decimal;
- 281   3                  d3 = DISPLAY_C;
- 282   3                  colon = COLON_DECIMAL;
- 283   3              }
- 284   2              else if ((EditItem != FIELD_SECOND) &&
- 285   2                       ((EditItem != FIELD_NONE) || (ClockPage == 0U)))
- 286   2              {
- 287   3                  d0 = ClockHour / 10U; d1 = ClockHour % 10U;
- 288   3                  d2 = ClockMinute / 10U; d3 = ClockMinute % 10U;
- 289   3              }
- 290   2              else
- 291   2              {
- 292   3                  d0 = ClockMinute / 10U; d1 = ClockMinute % 10U;
- 293   3                  d2 = ClockSecond / 10U; d3 = ClockSecond % 10U;
- 294   3              }
- 295   2              if (!TemperaturePage || (EditItem != FIELD_NONE))
- 296   2              {
- 297   3                  colon = (EditItem == FIELD_NONE) ? COLON_BLINK : COLON_ON;
- 298   3                  if (EditItem == FIELD_HOUR) blink = 0x03;
- 299   3                  else if (EditItem != FIELD_NONE) blink = 0x0C;
- 300   3              }
- 301   2          }
- 302   1          else if (DisplayState == STATE_ALARM)
-C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 14:22:22 PAGE 6   
+ 241   3                  else
+ 242   3                  {
+ 243   4                      Settings_RequestSave();
+ 244   4                      EditItem = FIELD_NONE;
+ 245   4                      Music_Stop();
+ 246   4                  }
+ 247   3              }
+ 248   2              else
+ 249   2              {
+ 250   3                  if (++DisplayState > STATE_ALARM) DisplayState = STATE_CLOCK;
+ 251   3                  if (DisplayState == STATE_STUDENT) StudentPos = 0;
+ 252   3                  if (DisplayState == STATE_CLOCK)
+ 253   3                  {
+ 254   4                      ClockTemperatureTicks = 0;
+ 255   4                      TemperaturePage = 0;
+ 256   4                      ClockPage = 0;
+ 257   4                  }
+ 258   3              }
+ 259   2              return;
+ 260   2          }
+ 261   1      
+ 262   1          if (events & KEY_EVENT_MINUS)
+ 263   1          {
+ 264   2              if ((EditItem == FIELD_NONE) &&
+ 265   2                  ((DisplayState == STATE_CLOCK) || (DisplayState == STATE_ALARM)))
+ 266   2                  EditItem = FIELD_HOUR;
+ 267   2              else if (EditItem != FIELD_NONE)
+ 268   2              {
+ 269   3                  if (DisplayState == STATE_CLOCK)
+ 270   3                      Board_AdjustClock(EditItem, 0U);
+ 271   3                  else
+ 272   3                  {
+ 273   4                      Board_AdjustAlarm(EditItem, 0U);
+ 274   4                      if (EditItem == FIELD_MUSIC)
+ 275   4                          Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
+ 276   4                  }
+ 277   3              }
+ 278   2          }
+ 279   1      
+ 280   1          if ((events & KEY_EVENT_PLUS) && (EditItem == FIELD_NONE))
+ 281   1          {
+ 282   2              if (DisplayState == STATE_CLOCK)
+ 283   2                  ClockTickEnabled = !ClockTickEnabled;
+ 284   2              else if (DisplayState == STATE_STUDENT)
+ 285   2              {
+ 286   3                  if (StudentPos & STUDENT_FIXED_FLAG)
+ 287   3                      StudentPos = 0;
+ 288   3                  else
+ 289   3                      StudentPos = STUDENT_FIXED_FLAG | STUDENT_FIXED_POS;
+ 290   3              }
+ 291   2              else if (DisplayState == STATE_ALARM)
+ 292   2                  Board_SelectNextAlarm();
+ 293   2          }
+ 294   1          else if ((events & (KEY_EVENT_PLUS | KEY_EVENT_PLUS_REPEAT)) &&
+ 295   1                   (EditItem != FIELD_NONE))
+ 296   1          {
+ 297   2              if (DisplayState == STATE_CLOCK)
+ 298   2                  Board_AdjustClock(EditItem, 1U);
+ 299   2              else
+ 300   2              {
+ 301   3                  Board_AdjustAlarm(EditItem, 1U);
+ 302   3                  if (EditItem == FIELD_MUSIC)
+C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 16:20:54 PAGE 6   
 
- 303   1          {
- 304   2              if (EditItem == FIELD_MUSIC)
- 305   2              {
- 306   3                  d0 = DISPLAY_A;
- 307   3                  d1 = SelectedAlarm + 1U;
- 308   3                  d2 = DISPLAY_DASH;
- 309   3                  d3 = AlarmMelodies[SelectedAlarm] + 1U;
- 310   3                  blink = 0x08;
- 311   3                  colon = COLON_OFF;
- 312   3              }
- 313   2              else
- 314   2              {
- 315   3                  alarm_hour = AlarmHours[SelectedAlarm];
- 316   3                  alarm_minute = AlarmMinutes[SelectedAlarm];
- 317   3                  d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
- 318   3                  d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
- 319   3                  if (EditItem == FIELD_HOUR) blink = 0x03;
- 320   3                  else if (EditItem == FIELD_MINUTE) blink = 0x0C;
- 321   3              }
- 322   2          }
- 323   1          Board_SetDisplay(d0, d1, d2, d3, blink, colon);
- 324   1      }
+ 303   3                      Music_Start(AlarmMelodies[SelectedAlarm], MUSIC_PREVIEW_MS);
+ 304   3              }
+ 305   2          }
+ 306   1      }
+ 307          
+ 308          static void App_Render(void)
+ 309          {
+ 310   1          unsigned char d0;
+ 311   1          unsigned char d1;
+ 312   1          unsigned char d2;
+ 313   1          unsigned char d3;
+ 314   1          unsigned char blink;
+ 315   1          unsigned char colon;
+ 316   1          unsigned char alarm_hour;
+ 317   1          unsigned char alarm_minute;
+ 318   1          unsigned char student_pos;
+ 319   1          unsigned char temperature;
+ 320   1          unsigned char temperature_decimal;
+ 321   1      
+ 322   1          blink = 0;
+ 323   1          colon = COLON_ON;
+ 324   1      
+ 325   1          if (DisplayState == STATE_STUDENT)
+ 326   1          {
+ 327   2              student_pos = StudentPos & 0x7FU;
+ 328   2              d0 = StudentId[student_pos] - '0';
+ 329   2              d1 = StudentId[student_pos + 1U] - '0';
+ 330   2              d2 = StudentId[student_pos + 2U] - '0';
+ 331   2              d3 = StudentId[student_pos + 3U] - '0';
+ 332   2              colon = COLON_OFF;
+ 333   2          }
+ 334   1          else if (DisplayState == STATE_CLOCK)
+ 335   1          {
+ 336   2              if (TemperaturePage && (EditItem == FIELD_NONE))
+ 337   2              {
+ 338   3                  temperature = Board_ReadTemperature(&temperature_decimal);
+ 339   3                  if (temperature == 0xFFU)
+ 340   3                      d0 = d1 = d2 = DISPLAY_DASH;
+ 341   3                  else
+ 342   3                  {
+ 343   4                      d0 = temperature / 10U;
+ 344   4                      d1 = temperature % 10U;
+ 345   4                      d2 = temperature_decimal;
+ 346   4                  }
+ 347   3                  d3 = DISPLAY_C;
+ 348   3                  colon = COLON_DECIMAL;
+ 349   3              }
+ 350   2              else if ((EditItem != FIELD_SECOND) &&
+ 351   2                       ((EditItem != FIELD_NONE) || (ClockPage == 0U)))
+ 352   2              {
+ 353   3                  d0 = ClockHour / 10U; d1 = ClockHour % 10U;
+ 354   3                  d2 = ClockMinute / 10U; d3 = ClockMinute % 10U;
+ 355   3              }
+ 356   2              else
+ 357   2              {
+ 358   3                  d0 = ClockMinute / 10U; d1 = ClockMinute % 10U;
+ 359   3                  d2 = ClockSecond / 10U; d3 = ClockSecond % 10U;
+ 360   3              }
+ 361   2              if (!TemperaturePage || (EditItem != FIELD_NONE))
+ 362   2              {
+ 363   3                  colon = (EditItem == FIELD_NONE) ? COLON_BLINK : COLON_ON;
+ 364   3                  if (EditItem == FIELD_HOUR) blink = 0x03;
+C51 COMPILER V9.60.7.0   APP                                                               09/12/2026 16:20:54 PAGE 7   
+
+ 365   3                  else if (EditItem != FIELD_NONE) blink = 0x0C;
+ 366   3              }
+ 367   2          }
+ 368   1          else if (DisplayState == STATE_ALARM)
+ 369   1          {
+ 370   2              if (EditItem == FIELD_MUSIC)
+ 371   2              {
+ 372   3                  d0 = DISPLAY_A;
+ 373   3                  d1 = SelectedAlarm + 1U;
+ 374   3                  d2 = DISPLAY_DASH;
+ 375   3                  d3 = AlarmMelodies[SelectedAlarm] + 1U;
+ 376   3                  blink = 0x08;
+ 377   3                  colon = COLON_OFF;
+ 378   3              }
+ 379   2              else
+ 380   2              {
+ 381   3                  alarm_hour = AlarmHours[SelectedAlarm];
+ 382   3                  alarm_minute = AlarmMinutes[SelectedAlarm];
+ 383   3                  d0 = alarm_hour / 10U; d1 = alarm_hour % 10U;
+ 384   3                  d2 = alarm_minute / 10U; d3 = alarm_minute % 10U;
+ 385   3                  if (EditItem == FIELD_HOUR) blink = 0x03;
+ 386   3                  else if (EditItem == FIELD_MINUTE) blink = 0x0C;
+ 387   3              }
+ 388   2          }
+ 389   1          Board_SetDisplay(d0, d1, d2, d3, blink, colon);
+ 390   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    887    ----
+   CODE SIZE        =   1067    ----
    CONSTANT SIZE    =     13    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =      8      14
+   DATA SIZE        =     10      17
    IDATA SIZE       =   ----    ----
-   BIT SIZE         =      2    ----
+   BIT SIZE         =      4       1
 END OF MODULE INFORMATION.
 
 

@@ -45,6 +45,11 @@ The Keil project shows the same layout as the `Application`, `Drivers` and
 - In the clock display, ten seconds without a button operation switches from
   time to room temperature, and another idle ten seconds switches back. Any
   button returns to the time view and restarts the ten-second interval.
+- With automatic screen-off enabled, sixty seconds without a pressed button
+  blanks all display digits and the colon. The clock, alarm, music and UART
+  remain active. The first button press only wakes the display; release it
+  before pressing again to perform the normal button action. A ringing alarm
+  also wakes the display. UART time/alarm writes wake it and restart the timer.
 - P1.3 in normal display mode: clock/temperature -> student ID -> alarm ->
   clock/temperature.
 - P1.4 in clock/alarm mode: enter editing at the hour field.
@@ -97,7 +102,11 @@ digit.
 - Temperature query: send `05 AA`; the MCU replies `05 WW DD AA`, where `WW`
   is the binary whole-degree value and `DD` is the binary tenths digit. For
   example, `05 1A 01 AA` means 26.1 °C. The query does not write EEPROM or
-  change the MCU display state.
+  change the MCU display state. If ADC sampling times out, the MCU replies
+  `05 FF FF AA` and the display shows `---C` rather than waiting forever.
+- Automatic screen-off switch: `06 EN AA`, with binary `EN=01` to enable the
+  sixty-second timeout and `EN=00` to disable it. A valid frame replies `06`,
+  wakes the display and saves the setting. Earlier UART frames remain valid.
 
 Example: set the clock to 19:35:50 by sending these hexadecimal bytes:
 
@@ -111,7 +120,8 @@ ignored. The supplied PC tool always generates valid packed-BCD fields.
 ## Power-off settings storage
 
 The internal EEPROM stores the current hour, minute and second together with
-the time, melody and on/off state of all three alarms. A record is written only
+the time, melody and on/off state of all three alarms and the automatic
+screen-off switch. A record is written only
 after the last field of a button edit is confirmed, or after a valid UART
 time/alarm/switch frame is accepted. Normal clock ticks, long-press repeats and
 display changes do not write EEPROM.
@@ -121,7 +131,7 @@ append-only journal. Each record has a format version, sequence number, CRC-8
 and a commit marker written last. If power fails during a write, the firmware
 loads the preceding complete record. Missing, damaged or out-of-range records
 fall back to the defaults in `config.h`. Older valid EEPROM records are still
-accepted and restore all alarms as enabled.
+accepted and restore all alarms as enabled and automatic screen-off enabled.
 
 Power-off time does not elapse: without an external battery-backed RTC, the
 clock restarts from its latest saved snapshot. When programming new firmware,
@@ -138,6 +148,8 @@ does not overwrite an alarm time shown in the PC tool. The tool does not read
 settings back from the MCU; its checkboxes are values to be sent, not a live
 status display. The `温度显示` page reads the board temperature on demand or once
 per second while that page is active; auto-refresh stops if the query fails.
+The separate `息屏设置` page writes the automatic screen-off switch; its checkbox
+is also a value to send, not a live readback.
 The connection stays open and DTR/RTS remain disabled. Write operations report
 success only after receiving the MCU's `06` ACK; temperature reads require a
 valid four-byte reply.
@@ -145,6 +157,8 @@ valid four-byte reply.
 ## Default values
 
 - Startup clock: 12:00:00.
+- Automatic screen-off: enabled; the display blanks after 60 seconds without
+  a button press.
 - Three alarms: 08:00, 12:00 and 16:00. All three are enabled by default, and each can be
   selected and edited independently.
 - The three selectable melodies are `Ode to Joy`, `Castle in the Sky` and

@@ -9,5 +9,6 @@
 
 void Keys_Init(void);
 unsigned char Keys_Scan10ms(void);
+bit Keys_AnyPressed(void);
 
 #endif

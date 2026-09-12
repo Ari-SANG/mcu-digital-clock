@@ -2,11 +2,13 @@
 //数码管扫描、时钟计时、GPIO、闹钟和蜂鸣器
 
 #include <STC15.H>
+#include <intrins.h>
 #include "board.h"
 #include "config.h"
 #include "music.h"
 
 #define T1_RELOAD (65536UL - FOSC / 1000UL)
+#define ADC_WAIT_LIMIT 5000U
 
 sbit DIG1 = P4^2;
 sbit DIG2 = P4^1;
@@ -25,6 +27,7 @@ static unsigned char code SegCode[14] =
 static volatile unsigned char data Disp[4];
 static volatile unsigned char data BlinkMask;
 static volatile unsigned char data ColonMode;
+static volatile bit DisplayEnabled;
 static unsigned char data ScanIndex;
 static unsigned int data BlinkMs;
 static bit BlinkVisible;
@@ -41,6 +44,7 @@ unsigned char data AlarmHours[ALARM_COUNT];
 unsigned char data AlarmMinutes[ALARM_COUNT];
 unsigned char data AlarmMelodies[ALARM_COUNT];
 unsigned char data AlarmEnabledMask;
+unsigned char data ScreenAutoOffEnabled;
 unsigned char data SelectedAlarm;
 static unsigned char data RingingAlarm;
 static volatile unsigned int data AlarmMs;
@@ -85,6 +89,7 @@ void Board_Init(void)
     AlarmMelodies[1] = ALARM2_START_MUSIC;
     AlarmMelodies[2] = ALARM3_START_MUSIC;
     AlarmEnabledMask = ALARM_ENABLED_ALL;
+    ScreenAutoOffEnabled = SCREEN_AUTO_OFF_DEFAULT;
     SelectedAlarm = 0;
     RingingAlarm = 0;
     AlarmRinging = 0;
@@ -94,6 +99,7 @@ void Board_Init(void)
     Disp[0] = 10U; Disp[1] = 10U; Disp[2] = 10U; Disp[3] = 10U;
     BlinkMask = 0;
     ColonMode = COLON_OFF;
+    DisplayEnabled = 1;
     ScanIndex = 0;
     BlinkMs = 0;
     BlinkVisible = 1;
@@ -129,12 +135,22 @@ bit Board_TakeSecondEvent(void)
 unsigned char Board_ReadTemperature(unsigned char data *decimal)
 {
     unsigned int data adc;
+    unsigned int data remaining;
     unsigned char data whole;
 
     ADC_CONTR = 0x88;
-    while ((ADC_CONTR & 0x10U) == 0U);
+    _nop_(); _nop_(); _nop_(); _nop_();
+    remaining = ADC_WAIT_LIMIT;
+    while ((ADC_CONTR & 0x10U) == 0U)
+    {
+        if (--remaining == 0U)
+        {
+            *decimal = 0xFFU;
+            return 0xFFU;
+        }
+    }
     ADC_CONTR &= ~0x10U;
-    adc = ((unsigned int)ADC_RES << 2) | ADC_RESL;
+    adc = ((unsigned int)ADC_RES << 2) | (ADC_RESL & 0x03U);
     adc -= adc >> 4;
     if (adc < 230U) adc = 230U;
     adc -= 230U;
@@ -153,6 +169,17 @@ void Board_SetDisplay(unsigned char d0, unsigned char d1,
     BlinkMask = blink_mask;
     ColonMode = colon_mode;
     EA = 1;
+}
+
+void Board_SetDisplayEnabled(bit enabled)
+{
+    DisplayEnabled = enabled;
+    if (!enabled)
+    {
+        DIG1 = 1; DIG2 = 1; DIG3 = 1; DIG4 = 1;
+        P2 = 0xFF;
+        COLON = 1;
+    }
 }
 
 void Board_SetTime(unsigned char hour, unsigned char minute,
@@ -342,17 +369,20 @@ void Timer1_Isr(void) interrupt 3 using 1
     DIG1 = 1; DIG2 = 1; DIG3 = 1; DIG4 = 1;
     P2 = 0xFF;
 
-    pattern = SegCode[Disp[ScanIndex]];
-    if ((!BlinkVisible) && ((BlinkMask & (1U << ScanIndex)) != 0U))
-        pattern = 0;
-    if ((ColonMode == COLON_DECIMAL) && (ScanIndex == 1U))
-        pattern |= 0x80U;
-    P2 = ~pattern;
+    if (DisplayEnabled)
+    {
+        pattern = SegCode[Disp[ScanIndex]];
+        if ((!BlinkVisible) && ((BlinkMask & (1U << ScanIndex)) != 0U))
+            pattern = 0;
+        if ((ColonMode == COLON_DECIMAL) && (ScanIndex == 1U))
+            pattern |= 0x80U;
+        P2 = ~pattern;
 
-    if (ScanIndex == 0U) DIG1 = 0;
-    else if (ScanIndex == 1U) DIG2 = 0;
-    else if (ScanIndex == 2U) DIG3 = 0;
-    else DIG4 = 0;
+        if (ScanIndex == 0U) DIG1 = 0;
+        else if (ScanIndex == 1U) DIG2 = 0;
+        else if (ScanIndex == 2U) DIG3 = 0;
+        else DIG4 = 0;
+    }
     if (++ScanIndex >= 4U) ScanIndex = 0;
 
     if (++BlinkMs >= 500U)
@@ -360,7 +390,8 @@ void Timer1_Isr(void) interrupt 3 using 1
         BlinkMs = 0;
         BlinkVisible = !BlinkVisible;
     }
-    if (ColonMode == COLON_ON) COLON = 0;
+    if (!DisplayEnabled) COLON = 1;
+    else if (ColonMode == COLON_ON) COLON = 0;
     else if (ColonMode == COLON_BLINK) COLON = BlinkVisible ? 0 : 1;
     else COLON = 1;
 

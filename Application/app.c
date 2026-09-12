@@ -24,11 +24,26 @@ static unsigned char data ClockPage;
 static unsigned char data StudentPos;
 static bit ClockTickEnabled;
 static bit TemperaturePage;
+static bit ScreenSleeping;
+static bit WakeKeyHeld;
 static unsigned int data UiTicks;
 static unsigned int data ClockTemperatureTicks;
+static unsigned int data InactivityTicks;
 
 static void App_Render(void);
 static void App_HandleKeys(unsigned char events);
+static void App_WakeScreen(void);
+
+static void App_WakeScreen(void)
+{
+    ScreenSleeping = 0;
+    InactivityTicks = 0;
+    UiTicks = 0;
+    ClockTemperatureTicks = 0;
+    TemperaturePage = 0;
+    ClockPage = 0;
+    Board_SetDisplayEnabled(1);
+}
 
 void App_Init(void)
 {
@@ -38,8 +53,12 @@ void App_Init(void)
     StudentPos = 0;
     ClockTickEnabled = CLOCK_TICK_DEFAULT_ON;
     TemperaturePage = 0;
+    ScreenSleeping = 0;
+    WakeKeyHeld = 0;
     UiTicks = 0;
     ClockTemperatureTicks = 0;
+    InactivityTicks = 0;
+    Board_SetDisplayEnabled(1);
     App_Render();
 }
 
@@ -51,6 +70,7 @@ void App_Service(void)
     unsigned char data alarm_index;
     unsigned char data alarm_melody;
     unsigned char data alarm_enabled;
+    unsigned char data screen_auto_off;
     unsigned char data second_event;
     unsigned char data temperature_decimal;
     unsigned char data temperature_whole;
@@ -62,10 +82,7 @@ void App_Service(void)
         Settings_RequestSave();
         DisplayState = STATE_CLOCK;
         EditItem = FIELD_NONE;
-        ClockPage = 0;
-        TemperaturePage = 0;
-        UiTicks = 0;
-        ClockTemperatureTicks = 0;
+        App_WakeScreen();
         App_Render();
     }
 
@@ -76,10 +93,7 @@ void App_Service(void)
         Settings_RequestSave();
         DisplayState = STATE_ALARM;
         EditItem = FIELD_NONE;
-        ClockPage = 0;
-        TemperaturePage = 0;
-        UiTicks = 0;
-        ClockTemperatureTicks = 0;
+        App_WakeScreen();
         App_Render();
     }
 
@@ -87,6 +101,14 @@ void App_Service(void)
     {
         Board_SetAlarmEnabled(alarm_index, alarm_enabled);
         Settings_RequestSave();
+    }
+
+    if (Uart1_TakeScreenSwitch(&screen_auto_off))
+    {
+        ScreenAutoOffEnabled = screen_auto_off;
+        App_WakeScreen();
+        Settings_RequestSave();
+        App_Render();
     }
 
     if (Uart1_TakeTemperatureRequest())
@@ -102,13 +124,52 @@ void App_Service(void)
             Board_StartClockTick();
 
         Board_CheckAlarms();
+        if (AlarmRinging && ScreenSleeping)
+        {
+            App_WakeScreen();
+            App_Render();
+        }
     }
 }
 
 void App_Tick10ms(unsigned char key_events)
 {
+    bit pressed;
+
+    pressed = Keys_AnyPressed();
+    if (WakeKeyHeld && !pressed) WakeKeyHeld = 0;
+
     if (key_events != KEY_EVENT_NONE)
-        App_HandleKeys(key_events);
+    {
+        InactivityTicks = 0;
+        if (ScreenSleeping)
+        {
+            App_WakeScreen();
+            if (!AlarmRinging) WakeKeyHeld = 1;
+            else App_HandleKeys(key_events);
+        }
+        else if (!WakeKeyHeld)
+            App_HandleKeys(key_events);
+    }
+
+    if (AlarmRinging)
+    {
+        InactivityTicks = 0;
+        if (ScreenSleeping) App_WakeScreen();
+    }
+    else if (!ScreenAutoOffEnabled)
+        InactivityTicks = 0;
+    else if (!ScreenSleeping)
+    {
+        if (pressed) InactivityTicks = 0;
+        else if (++InactivityTicks >= SCREEN_OFF_TICKS)
+        {
+            ScreenSleeping = 1;
+            Board_SetDisplayEnabled(0);
+        }
+    }
+
+    if (ScreenSleeping) return;
 
     UiTicks++;
     if ((DisplayState == STATE_CLOCK) && (EditItem == FIELD_NONE))
@@ -275,9 +336,14 @@ static void App_Render(void)
         if (TemperaturePage && (EditItem == FIELD_NONE))
         {
             temperature = Board_ReadTemperature(&temperature_decimal);
-            d0 = temperature / 10U;
-            d1 = temperature % 10U;
-            d2 = temperature_decimal;
+            if (temperature == 0xFFU)
+                d0 = d1 = d2 = DISPLAY_DASH;
+            else
+            {
+                d0 = temperature / 10U;
+                d1 = temperature % 10U;
+                d2 = temperature_decimal;
+            }
             d3 = DISPLAY_C;
             colon = COLON_DECIMAL;
         }

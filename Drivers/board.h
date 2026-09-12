@@ -23,6 +23,7 @@ extern unsigned char data AlarmHours[3];
 extern unsigned char data AlarmMinutes[3];
 extern unsigned char data AlarmMelodies[3];
 extern unsigned char data AlarmEnabledMask;
+extern unsigned char data ScreenAutoOffEnabled;
 extern unsigned char data SelectedAlarm;
 extern volatile bit AlarmRinging;
 
@@ -33,6 +34,7 @@ unsigned char Board_ReadTemperature(unsigned char data *decimal);
 void Board_SetDisplay(unsigned char d0, unsigned char d1,
                       unsigned char d2, unsigned char d3,
                       unsigned char blink_mask, unsigned char colon_mode);
+void Board_SetDisplayEnabled(bit enabled);
 void Board_SetTime(unsigned char hour, unsigned char minute,
                    unsigned char second);
 void Board_AdjustClock(unsigned char field, unsigned char increase);

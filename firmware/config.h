@@ -1,0 +1,39 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+/* The connected MCU was measured at 11.0592 MHz through its UART baud rate. */
+#define FOSC                    11059200L
+#define UART1_BAUD              115200L
+
+/* User settings. */
+#define STUDENT_ID_TEXT         "202436100135"
+#define CLOCK_START_HOUR        12U
+#define CLOCK_START_MINUTE      0U
+#define CLOCK_START_SECOND      0U
+#define ALARM_COUNT             3U
+#define ALARM_ENABLED_ALL       ((1U << ALARM_COUNT) - 1U)
+#define ALARM1_START_HOUR       8U
+#define ALARM1_START_MINUTE     0U
+#define ALARM2_START_HOUR       12U
+#define ALARM2_START_MINUTE     0U
+#define ALARM3_START_HOUR       16U
+#define ALARM3_START_MINUTE     0U
+#define ALARM1_START_MUSIC      0U
+#define ALARM2_START_MUSIC      1U
+#define ALARM3_START_MUSIC      2U
+
+/* UI timings are counted in 10 ms scheduler ticks. */
+#define STUDENT_SCROLL_TICKS    70U
+#define CLOCK_PAGE_TICKS        300U
+#define CLOCK_TEMPERATURE_TICKS 1000U
+#define SCREEN_OFF_TICKS        6000U
+#define SCREEN_AUTO_OFF_DEFAULT 1U
+#define KEY_DEBOUNCE_TICKS      3U
+#define KEY_REPEAT_START_TICKS  60U
+#define KEY_REPEAT_STEP_TICKS   12U
+#define CLOCK_TICK_DEFAULT_ON   1U
+#define CLOCK_TICK_SOUND_MS     40U
+#define ALARM_RING_MS           30000U
+#define ALARM_SNOOZE_MINUTES    10U
+
+#endif

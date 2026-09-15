@@ -1,0 +1,13 @@
+# Preserve binary references, including PDFs that happen to contain only ASCII.
+*.pdf binary
+*.docx binary
+*.png binary
+*.ico binary
+*.pdsprj binary
+*.exe binary
+# Archived originals and published checksums must round-trip byte for byte.
+archive/** -text
+artifacts/** -text
+docs/references/source-manifest.csv -text
+# Legacy C51 preprocessor accepts CRLF directives reliably.
+firmware/vendor/STC15.H text eol=crlf

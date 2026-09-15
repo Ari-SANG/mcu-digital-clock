@@ -1,0 +1,84 @@
+/* UART1 receives binary time frames: 01 HH MM SS AA (packed BCD). */
+//串口初始化和校时数据解析
+
+#include <STC15.H>
+#include "config.h"
+#include "uart1.h"
+
+static volatile unsigned char data RxState;
+static volatile unsigned char data RxBcd[3];
+static volatile unsigned char data NewHour;
+static volatile unsigned char data NewMinute;
+static volatile unsigned char data NewSecond;
+static volatile bit NewTimeReady;
+
+void Uart1_Init(void)
+{
+    RxState = 0;
+    NewTimeReady = 0;
+    SCON = 0x50;
+    AUXR |= 0x01;
+    AUXR |= 0x04;
+    T2L = (65536UL - FOSC / 4UL / UART1_BAUD);
+    T2H = (65536UL - FOSC / 4UL / UART1_BAUD) >> 8;
+    AUXR |= 0x10;
+    ES = 1;
+}
+
+bit Uart1_TakeTime(unsigned char data *hour,
+                   unsigned char data *minute,
+                   unsigned char data *second)
+{
+    if (!NewTimeReady) return 0;
+    EA = 0;
+    *hour = NewHour;
+    *minute = NewMinute;
+    *second = NewSecond;
+    NewTimeReady = 0;
+    EA = 1;
+    return 1;
+}
+
+void Uart1_Isr(void) interrupt 4 using 2
+{
+    unsigned char value;
+    unsigned char hour;
+    unsigned char minute;
+    unsigned char second;
+
+    if (RI)
+    {
+        RI = 0;
+        value = SBUF;
+        if (RxState == 0U)
+        {
+            if (value == 0x01U) RxState = 1U;
+        }
+        else if (RxState <= 3U)
+        {
+            RxBcd[RxState - 1U] = value;
+            RxState++;
+        }
+        else
+        {
+            RxState = 0;
+            if ((value == 0xAAU) &&
+                ((RxBcd[0] & 0x0FU) <= 9U) && ((RxBcd[0] >> 4) <= 9U) &&
+                ((RxBcd[1] & 0x0FU) <= 9U) && ((RxBcd[1] >> 4) <= 9U) &&
+                ((RxBcd[2] & 0x0FU) <= 9U) && ((RxBcd[2] >> 4) <= 9U))
+            {
+                hour = (RxBcd[0] >> 4) * 10U + (RxBcd[0] & 0x0FU);
+                minute = (RxBcd[1] >> 4) * 10U + (RxBcd[1] & 0x0FU);
+                second = (RxBcd[2] >> 4) * 10U + (RxBcd[2] & 0x0FU);
+                if ((hour < 24U) && (minute < 60U) && (second < 60U))
+                {
+                    NewHour = hour;
+                    NewMinute = minute;
+                    NewSecond = second;
+                    NewTimeReady = 1;
+                }
+            }
+        }
+    }
+    if (TI) TI = 0;
+}

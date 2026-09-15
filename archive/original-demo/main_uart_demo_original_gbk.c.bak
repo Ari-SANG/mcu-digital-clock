@@ -1,0 +1,239 @@
+/*
+串口Uart1 测试程序 V1.0
+功能：
+1)上电时，从串口发送给上位机：Hello MCU !Hello MCU again!
+2)上位机发送：01 19 35 50  AA    返回：OK
+              01 19 35 50 00 AA  返回：Err  字符串长度不对
+              10 AA              返回：Temp = 12.3   串口接收，置标志位，在主循环中返回数据
+
+单片机型号：STC15W4K32S4
+晶振频率：12.000MHz
+
+作者：PAN
+日期：2025.06
+*/
+
+#include <STC15.H>
+
+#define     FOSC  12000000L        //系统频率: 12000000L, 11059200L
+#define     BAUD  115200           //串口波特率
+
+//串口通信
+#define       UART1_TX_BUF_LENGTH    16
+#define       UART1_RX_BUF_LENGTH    16
+unsigned char pdata RX1_Buffer[UART1_RX_BUF_LENGTH]; //接收缓存
+unsigned char RX1_cnt=0; //接收计数
+unsigned char pdata TX1_Buffer[UART1_TX_BUF_LENGTH]; //发送缓存
+unsigned char TX1_cnt,TX1_read=0; //TX1_cnt--待发送数据指针，TX1_read--当前发送数据指针
+bit Uart1_TX_busy;  //串口发送忙标记
+
+bit flagReadTemp = 0; //读取温度
+
+void setup(); //初始化函数
+void loop();  //主循环函数
+void GPIO_Init(); //端口初始化
+void Uart1_Init();  //串口1初始化
+void Uart1_SendData(unsigned char dat); //发送串口数据（查询方式）
+void Uart1_SendString(char *s); //串口发送字符串（查询方式）
+void TX1_write2buff(unsigned char dat); //串口发送字符串（写缓冲）
+void UART1_Print(unsigned char *puts); //串口发送字符串（中断缓冲发送方式）
+
+void main()
+{
+    setup(); //初始化
+    while(1)
+    {
+        loop(); //主循环
+    }
+}
+
+void setup()
+{
+    GPIO_Init(); //端口初始化
+    
+    Uart1_Init();
+  
+    EA = 1; //开总中断
+    
+    //debug, 看是否能正常发送数据
+    Uart1_SendString("Hello MCU !"); //debug, Uart1查询方式发送字符串
+    UART1_Print("Hello MCU again!"); //debug, Uart1中断方式发送字符串
+}
+
+
+void loop()
+{
+    if(flagReadTemp)
+    {
+        flagReadTemp = 0;
+        UART1_Print("Temp = 12.3");
+    }
+    
+}
+
+//IO初始化
+void GPIO_Init()
+{
+    P0M1=0x00; P0M0=0x00; //准双向   //P0M1=0x00;P0M0=0xff;//推挽输出
+    P1M1=0x00; P1M0=0x00; //准双向   
+    P2M1=0x00; P2M0=0x00; //准双向
+    P3M1=0x00; P3M0=0x00; //准双向
+    P4M1=0x00; P4M0=0x00; //准双向
+    
+    //ADC口: P10，高阻输入
+    P1M0 &= ~0x01; P1M1 |= 0x01; 
+}
+
+/*************** UART1相关函数 *******************************/
+void Uart1_Init() //串口1初始化 unsigned int bps
+{
+    //【注意】串口对应GPIO输出方式：准双向，不能推挽
+    
+    //115200bps@12.000MHz
+	SCON = 0x50;		//8位数据,可变波特率
+	AUXR |= 0x01;		//选择定时器2为串口1的波特率发生器
+	AUXR |= 0x04;		//定时器2时钟为1T模式
+	//T2L = 0xE6;			//设置定时初始值
+	//T2H = 0xFF;			//设置定时初始值
+    T2L = (65536 - (FOSC/4/BAUD));   //设置波特率重装值
+    T2H = (65536 - (FOSC/4/BAUD))>>8;
+	AUXR |= 0x10;		//定时器2开始计时
+	ES = 1;				//使能串口1中断
+    
+    //【注意】T0、T1已被占用，不能用作波特率发生器
+}
+
+//串口1中断服务程序
+void Uart1_Isr() interrupt 4
+{
+    if(RI==1)
+    {
+        RI = 0;   //清除RI位
+        RX1_Buffer[RX1_cnt++] = SBUF;
+
+        //P0 = ~SBUF;  //检查串口数据是否用
+        
+        if(SBUF==0xAA) //如果是结尾符0xAA，则处理收到的帧消息
+        {
+            //TX1_write2buff(RX1_cnt);
+            
+            //首字节为功能码，根据不同功能码实现不同任务：
+            switch(RX1_Buffer[0]) 
+            {
+                case 0x00: //切换模式
+                    //runStatus++;
+                    //if(runStatus > dispTemp) //dispTemp adjSS
+                    //{
+                    //    runStatus = dispStuNo;
+                    //}
+                    break;
+                
+                case 0x01: //设置时间, 压缩BCD码格式
+                    if(RX1_cnt==5) //若数据个数正确
+                    {
+                        //压缩BCD码格式：01 13 12 06 AA ==>13:12:06
+                        //HH = (RX1_Buffer[1]>>4)*10+(RX1_Buffer[1] & 0x0F);
+                        //MM = (RX1_Buffer[2]>>4)*10+(RX1_Buffer[2] & 0x0F);
+                        //SS = (RX1_Buffer[3]>>4)*10+(RX1_Buffer[3] & 0x0F);
+
+                        //if(runStatus!=dispSS) runStatus = dispHHMM; //切换成时钟
+
+                        //SBUF = 0x00;  //返回00表示成功
+                        UART1_Print("OK");
+                    }
+                    else
+                    {
+                        //SBUF = 0xFF;  //返回FF表示错误
+                        UART1_Print("Err");
+                    }
+                    break;
+                
+                case 0x02: //设置闹钟
+                    break;
+                
+                case 0x10: //读取温度
+                    flagReadTemp = 1;
+                    //runStatus = dispTemp;
+                    break;
+                
+                default:
+                    ;
+            }
+            
+            RX1_cnt=0; //归零，等待接收下一帧
+        }
+        
+        if(RX1_cnt >= UART1_RX_BUF_LENGTH) RX1_cnt = 0;    //防溢出
+    }
+
+    if(TI==1)
+    {
+        TI = 0;  //清除TI位
+        if(TX1_read != TX1_cnt)
+        {
+            SBUF = TX1_Buffer[TX1_read]; //发送一个字节
+            if(++TX1_read >= UART1_TX_BUF_LENGTH) TX1_read = 0;
+        }
+        else
+        {
+            Uart1_TX_busy = 0;  //清忙标志
+        }
+    }
+}
+
+
+//发送串口数据（查询方式）
+void Uart1_SendData(unsigned char dat)
+{
+    while(Uart1_TX_busy);       //等待前面的数据发送完成
+    Uart1_TX_busy = 1;
+    SBUF = dat;                 //写数据到UART数据寄存器
+}
+
+//串口发送字符串（查询方式）
+void Uart1_SendString(char *s)
+{
+    while (*s)                  //检测字符串结束标志
+    {
+        Uart1_SendData(*s++);   //发送当前字符
+    }
+}
+
+//串口发送字符串（写缓冲）
+void TX1_write2buff(unsigned char dat) //写入发送缓冲，TX1_cnt(待发送数据)指针+1
+{
+    TX1_Buffer[TX1_cnt] = dat;  //装发送缓冲
+    if(++TX1_cnt >= UART1_TX_BUF_LENGTH) TX1_cnt = 0;
+
+    if(Uart1_TX_busy == 0)  //若空闲
+    {  
+        Uart1_TX_busy = 1;  //置空闲标志忙
+        TI = 1;             //触发发送中断
+    }
+}
+
+//串口发送字符串（中断缓冲发送方式）
+void UART1_Print(unsigned char *puts)
+{
+    for(; *puts != 0; puts++) TX1_write2buff(*puts); 	//遇到停止符0结束
+}
+
+//单字节HEX转BCD
+unsigned char hex2bcd(unsigned char hex)
+{
+    unsigned char bcd;
+    bcd = hex/10;  //取十位
+    bcd *=16;      //乘以权重16, 或左移4位 <<=4 
+    bcd += hex%10; //取个位
+    return bcd;
+}
+
+//单字节HEX转BCD
+unsigned char bcd2hex(unsigned char bcd)
+{
+    unsigned char hex;
+    hex = bcd/16;   //取十位 或右移4位 >>=4 
+    hex *=10;       //乘以权重10   
+    hex += bcd%16;  //取个位，或 bcd & 0x0F
+    return hex;
+}

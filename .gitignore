@@ -1,0 +1,29 @@
+# Rebuildable outputs and machine-specific IDE state
+firmware/Objects/
+firmware/Listings/
+*.uvgui.*
+*.uvopt
+*.uvguix.*
+tools/serial-assistant/bin/
+tools/serial-assistant/obj/
+__pycache__/
+*.pyc
+*.lnk
+*.pdb
+*.user
+*.suo
+tmp/
+# Keep historical logs in archive; ignore new logs elsewhere.
+*.log
+!archive/build-logs/*.log
+
+# Materials kept locally; not selected for publication.
+/docs/templates/README.md
+/docs/templates/单片机课程设计报告-模板--英文版V2.docx
+/docs/templates/单片机课程设计报告-模板-中文版V2.docx
+/docs/references/【PPT】单片机课程设计--中文版--2026V1.pdf
+/hardware/images/【硬件系统框图】多功能数字钟.drawio.png
+/hardware/simulation/DigitalClock.pdsprj
+/archive/original-demo/ClockDemoV4.2.hex
+/artifacts/firmware/DigitalClock.hex
+/artifacts/pc/SerialTimeSync.exe

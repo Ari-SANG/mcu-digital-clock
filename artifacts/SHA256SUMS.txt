@@ -1,0 +1,2 @@
+e7f837f3f71249f671436f71fc8331c73cc69c224d964336159294e7407f0e5e  artifacts/firmware/keil-build.txt
+36fcdd13fa8c89bc4993f4c76162dcfe4c55df7bc39715404b8f4e5f47021f10  artifacts/firmware/restore-build.txt

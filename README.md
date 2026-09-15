@@ -1,173 +1,66 @@
-# mcu-digital-clock
+# 多功能数字钟 · mcu-digital-clock
 
-基于 STC15W4K48S4 单片机的多功能数字钟。
+基于 STC15W4K 系列 8051 单片机与 ZJNU EELab V1.3 数字钟板的课程设计工程。项目原有说明标注实物为 **STC15W4K48S4**；课程参考电路和 Keil 器件选择为 **STC15W4K32S4**。系统时钟按 **11.0592 MHz** 配置，串口为 **115200 / 8N1**。替换硬件时先核对芯片丝印、引脚和下载时钟。
 
-This Keil C51 project now implements the five basic course requirements on the
-ZJNU EELab V1.3 digital-clock board.
+本仓库同时保存当前固件、电脑串口助手、硬件电路、原理资料和历史版本，方便以后从源码重新编译、理解接线并恢复使用。
 
-## Before programming
+![PCB V1.3 预览](hardware/images/【PCB效果图】多功能数字钟--3D--V1.3.png)
 
-1. Open `Uart1_Demo.uvproj` in Keil uVision.
-2. The student number is configured as `STUDENT_ID_TEXT` in `config.h`. Its
-   complete value scrolls, while its last four digits form the fixed display.
-3. Keep the STC clock setting at 11.0592 MHz so the timer and UART calculations
-   match the firmware. This value was confirmed from the connected MCU's UART
-   baud rate.
-4. Build the project. The generated file is `Objects/Uart1_Demo.hex`.
+## 一年后重新打开，从这里开始
 
-The firmware drives P4.5 high in push-pull mode. This powers VCCD when jumper H2
-is fitted between P4.5 and VCCD; the other H2 position connects VCCD directly to
-+5 V.
+1. [阅读导航与目录说明](docs/README.md)：先分清当前工程、参考资料和历史归档。
+2. [硬件原理与接线](docs/hardware.md)：确认供电、数码管、按键、蜂鸣器和串口。
+3. [程序架构与原理](docs/architecture.md)：沿着 `main → app → Drivers` 阅读。
+4. [编译、烧录与恢复](docs/build-and-flash.md)：从干净克隆重新生成 HEX 和上位机。
+5. [按键与功能操作](docs/usage.md)、[串口协议](docs/protocol.md)：实际使用与二次开发。
+6. [背景资料索引](docs/references/README.md)：按问题查找电路资料与数据手册章节。
 
-## Project structure
+## 功能
 
-- `main.c`: initialization and foreground scheduling only.
-- `config.h`: student ID, startup time, alarm defaults and timing constants.
-- `Application/app.c`: three selectable states, automatic clock/temperature
-  switching and the complete edit workflow.
-- `Drivers/board.c`: GPIO, Timer1 display scan, clock timebase, alarm and
-  P1.0/ADC0 temperature measurement.
-- `Drivers/music.c`: Timer0 hardware tone output, three built-in melodies,
-  clock tick and alarm/preview sequencing.
-- `Drivers/settings.c`: power-loss-safe internal EEPROM journal for the clock
-  and all three alarm configurations.
-- `Drivers/keys.c`: key debounce and long-press repeat.
-- `Drivers/uart1.c`: UART1 initialization and time/alarm-frame parser.
-- `chuankou/`: C# WinForms serial tool, source code and compiled EXE.
+- 四位数码管显示时间，HH:MM 与 MM:SS 每 3 秒交替；时钟与温度空闲每 10 秒切换。
+- 学号滚动与末四位固定显示；按键设置时、分、秒，支持长按连发。
+- 三组独立闹钟、三首可选旋律、试听和 10 分钟贪睡；可开关每秒滴答音。
+- 串口校时、闹钟设置、温度查询、自动息屏开关与立即息屏。
+- EEPROM 保存确认后的时间快照、闹钟与自动息屏设置；掉电期间不继续计时。
+- C# WinForms 串口助手；另有较早的 Python 校时工具。
 
-The Keil project shows the same layout as the `Application`, `Drivers` and
-`Headers` source groups.
-
-## Buttons
-
-- After power-on the clock display is selected. Because the board has four
-  digits, it alternates every three seconds between HH:MM and MM:SS.
-- In the clock display, ten seconds without a button operation switches from
-  time to room temperature, and another idle ten seconds switches back. Any
-  button returns to the time view and restarts the ten-second interval.
-- With automatic screen-off enabled, sixty seconds without a pressed button
-  blanks all display digits and the colon. The clock, alarm, music and UART
-  remain active. The first button press only wakes the display; release it
-  before pressing again to perform the normal button action. A ringing alarm
-  also wakes the display. UART time/alarm writes wake it and restart the timer.
-- P1.3 in normal display mode: clock/temperature -> student ID -> alarm ->
-  clock/temperature.
-- P1.4 in clock/alarm mode: enter editing at the hour field.
-- P1.4 while editing: decrement the flashing field.
-- P1.5 while editing: increment the flashing field.
-- P1.5 in the normal clock display: enable or disable the once-per-second
-  ticking sound. The ticking sound is enabled by default.
-- P1.5 in the student ID display: switch between scrolling `202436100135` and
-  the fixed four-digit form `0135`. Power-on defaults to the scrolling form.
-- P1.5 in the normal alarm display: cycle through alarm 1, alarm 2 and alarm 3.
-- Hold P1.4 or P1.5 for 600 ms to start automatic repeat (every 120 ms).
-- P1.3 while editing: confirm the field and move to the next one. Clock editing
-  follows hour -> minute -> second -> finish; alarm editing follows hour ->
-  minute -> music -> finish.
-- The alarm music field is shown as `A1-2`, meaning alarm 1 uses music 2.
-  P1.4/P1.5 selects the previous/next melody and restarts a six-second
-  preview; P1.3 stops the preview and completes editing.
-- While an alarm is ringing, P1.3 stops the sound and snoozes that occurrence
-  for exactly ten minutes. P1.4 or P1.5 stops it without snoozing. Snooze keeps
-  the original alarm's daily time unchanged and is not written to EEPROM.
-
-The display scan and clock timebase run in the 1 ms Timer1 interrupt. Timer0's
-hardware clock output drives P3.5 directly, so melody pitch does not depend on
-interrupt latency and button handling does not block the display.
-
-## Room temperature
-
-The automatic temperature view in the clock state reads the board's 10 kOhm,
-B=3950 NTC divider through P1.0/ADC0. The 10-bit ADC result is converted to
-tenths of a degree Celsius for normal indoor temperatures. For example, `261C`
-means 26.1 degrees Celsius; the decimal point is illuminated after the second
-digit.
-
-## UART1 time synchronization
-
-- Port pins: RxD=P3.0, TxD=P3.1.
-- Settings: 115200 baud, 8 data bits, no parity, 1 stop bit.
-- Binary frame: `01 HH MM SS AA`.
-- `HH`, `MM` and `SS` are packed BCD bytes.
-- A valid frame is acknowledged with byte `06`.
-- Alarm frame: `02 NN HH MM AA`. `NN` is the binary alarm number 01-03;
-  `HH` and `MM` are packed BCD. A valid frame updates that alarm, selects its
-  display and is acknowledged with byte `06`.
-- Extended alarm frame: `03 NN HH MM MU AA`. `MU` is the binary melody number
-  01-03. It updates the alarm time and melody in one acknowledged operation.
-- Alarm on/off frame: `04 NN EN AA`. `NN` is the binary alarm number 01-03;
-  `EN=01` enables and `EN=00` disables that alarm. It does not change the
-  alarm's time or melody. The old `02` and `03` frames preserve the on/off
-  setting. Disabling a ringing or snoozed alarm stops/cancels it.
-- Temperature query: send `05 AA`; the MCU replies `05 WW DD AA`, where `WW`
-  is the binary whole-degree value and `DD` is the binary tenths digit. For
-  example, `05 1A 01 AA` means 26.1 °C. The query does not write EEPROM or
-  change the MCU display state. If ADC sampling times out, the MCU replies
-  `05 FF FF AA` and the display shows `---C` rather than waiting forever.
-- Automatic screen-off switch: `06 EN AA`, with binary `EN=01` to enable the
-  sixty-second timeout and `EN=00` to disable it. A valid frame replies `06`,
-  wakes the display and saves the setting. Earlier UART frames remain valid.
-
-Example: set the clock to 19:35:50 by sending these hexadecimal bytes:
+## 目录
 
 ```text
-01 19 35 50 AA
+firmware/                  当前可编译的 Keil C51 工程
+  main.c                   初始化和主循环
+  config.h                 时钟频率、学号、默认值和时序参数
+  Application/             显示状态、编辑、串口事件与息屏
+  Drivers/                 显示计时、按键、音乐、UART、EEPROM
+  vendor/STC15.H           工程所需 STC 寄存器头文件
+  Uart1_Demo.uvproj         Keil 工程入口（保留历史工程名）
+tools/
+  serial-assistant/        完整 C# 上位机源码、图标与构建脚本
+  python/                  Python/Tkinter 基础校时助手
+hardware/
+  images/                  PCB 3D 图
+  simulation/              Proteus 参考 PDF
+docs/
+  references/              STC15 中文数据手册与资料索引
+archive/                   原始演示、早期未完成固件与构建历史
+artifacts/                 重建日志与验证记录
 ```
 
-Frames with an unsupported command, invalid length or out-of-range time are
-ignored. The supplied PC tool always generates valid packed-BCD fields.
+## 最快恢复
 
-## Power-off settings storage
+```powershell
+git clone https://github.com/Ari-SANG/mcu-digital-clock.git
+cd mcu-digital-clock
+```
 
-The internal EEPROM stores the current hour, minute and second together with
-the time, melody and on/off state of all three alarms and the automatic
-screen-off switch. A record is written only
-after the last field of a button edit is confirmed, or after a valid UART
-time/alarm/switch frame is accepted. Normal clock ticks, long-press repeats and
-display changes do not write EEPROM.
+安装带 **C51** 的 Keil uVision，打开 [firmware/Uart1_Demo.uvproj](firmware/Uart1_Demo.uvproj)，Rebuild 后烧录 `firmware/Objects/Uart1_Demo.hex`，下载工具的系统时钟设为 **11.0592 MHz**。上位机进入 `tools/serial-assistant` 后运行 `build.bat`。详细步骤与故障排查见[恢复说明](docs/build-and-flash.md)。
 
-Two 512-byte EEPROM sectors at IAP addresses `0000H` and `0200H` form an
-append-only journal. Each record has a format version, sequence number, CRC-8
-and a commit marker written last. If power fails during a write, the firmware
-loads the preceding complete record. Missing, damaged or out-of-range records
-fall back to the defaults in `config.h`. Older valid EEPROM records are still
-accepted and restore all alarms as enabled and automatic screen-off enabled.
+当前主工程只有 `firmware/`。`archive/early-firmware/` 是未完成的早期尝试，不能直接作为当前工程编译。原始参考仿真采用不同温度器件并含旧电脑路径，使用前按[仿真说明](hardware/simulation/README.md)调整。
 
-Power-off time does not elapse: without an external battery-backed RTC, the
-clock restarts from its latest saved snapshot. When programming new firmware,
-configure the STC download tool to preserve EEPROM and enable the option that
-forbids EEPROM operations at low voltage.
+## 归档记录
 
-## PC time synchronization tool
+2026-09-15：重新组织目录，纳入原来位于仓库外的参考资料；保留已有未提交的立即息屏功能与串口助手改动，补齐本地依赖头文件。构建输出与个人 IDE 状态不再作为日常源码跟踪；构建验证日志保存在 `artifacts/`。
 
-Run `chuankou\bin\SerialTimeSync.exe`, select the CH340 COM port and connect.
-The `时间同步` page can send the current PC clock or a manually entered time.
-The separate `闹钟设置` page can update the time, melody and on/off state of any
-alarm. Time/music and on/off have separate write buttons, so changing a switch
-does not overwrite an alarm time shown in the PC tool. The tool does not read
-settings back from the MCU; its checkboxes are values to be sent, not a live
-status display. The `温度显示` page reads the board temperature on demand or once
-per second while that page is active; auto-refresh stops if the query fails.
-The separate `息屏设置` page writes the automatic screen-off switch; its checkbox
-is also a value to send, not a live readback.
-The connection stays open and DTR/RTS remain disabled. Write operations report
-success only after receiving the MCU's `06` ACK; temperature reads require a
-valid four-byte reply.
+资料来源、版本差异和归档边界见[资料索引](docs/references/README.md)与[归档说明](archive/README.md)。厂商头文件及旋律素材保留各自来源，本次整理不为第三方材料新增授权。
 
-## Default values
-
-- Startup clock: 12:00:00.
-- Automatic screen-off: enabled; the display blanks after 60 seconds without
-  a button press.
-- Three alarms: 08:00, 12:00 and 16:00. All three are enabled by default, and each can be
-  selected and edited independently.
-- The three selectable melodies are `Ode to Joy`, `Castle in the Sky` and
-  JJ Lin's `Cao Cao` (a transposed, single-note chorus excerpt). Alarm 1, alarm 2 and alarm 3 default to melodies
-  1, 2 and 3 respectively. The selected melody repeats for up to 30 seconds;
-  any button stops it.
-- The melodies use the C5-E6 range (including F-sharp), song-specific timing
-  and a 25 ms gap between notes for clear articulation on the board's passive
-  buzzer.
-- Alarm duration: up to 30 seconds, looping the selected passive-buzzer melody.
-- Clock tick: a 40 ms, 500 Hz tone on each second while the clock display is
-  selected. The alarm has priority over this short tone.
+本次随工程公开的原始背景附件仅包含你确认的 PCB V1.3 预览、电路 PDF、Proteus 仿真 PDF 和 STC15 数据手册。完整课程 PDF、报告模板、系统框图、可编辑仿真副本及新构建的 HEX/EXE 留在本地；从仓库源码可重新生成当前固件和上位机。
